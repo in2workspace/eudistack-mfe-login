@@ -79,6 +79,8 @@ jobs:
     name: Deploy to Staging
     needs: ci
     runs-on: ubuntu-latest
+    environment:
+      name: stg
     env:
       ENVIRONMENT: stg
     steps:
