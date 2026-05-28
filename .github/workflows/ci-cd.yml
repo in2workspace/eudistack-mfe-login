@@ -12,7 +12,6 @@ on:
 
 env:
   PROJECT_NAME: eudistack
-  APP_NAME: mfe-login
   REGION_CODE: ew1
   SPA_PREFIX: verifier
 
