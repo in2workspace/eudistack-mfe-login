@@ -7,6 +7,39 @@ import { Theme } from '../models/theme.model';
 import { resolveTenant } from '../constants/tenants.constants';
 
 /**
+ * Built-in EUDIStack fallback theme applied when the per-tenant theme.json
+ * cannot be loaded (network error, 404, timeout). Mirrors src/assets/theme.json
+ * as a TypeScript constant to avoid a second HTTP round-trip on failure.
+ * Fields without tenant embed codes are explicitly null (AC-04 backward-compat).
+ */
+const DEFAULT_THEME: Theme = {
+  tenantDomain: 'EUDISTACK',
+  branding: {
+    name: 'EUDIStack',
+    primaryColor: '#0F2B5B',
+    primaryContrastColor: '#ffffff',
+    secondaryColor: '#00BFA6',
+    secondaryContrastColor: '#ffffff',
+    logoUrl: 'assets/logos/logo.svg',
+    faviconUrl: 'assets/favicon.svg',
+  },
+  content: {
+    links: [],
+    footer: null,
+    headerEmbedCode: null,
+    footerEmbedCode: null,
+    knowledgeBaseUrl: 'https://docs.eudistack.net/',
+    onboardingUrl: null,
+    supportUrl: null,
+    walletUrl: '/wallet',
+  },
+  i18n: {
+    defaultLang: 'es',
+    available: ['en', 'es'],
+  },
+};
+
+/**
  * Semantic design tokens — neutral, brand-independent values for content areas.
  * Brand colors (from theme.json) apply to login chrome and header/footer.
  */
@@ -87,7 +120,8 @@ export class ThemeService {
   }
 
   private applyDefault(): void {
-    /* T5: apply built-in fallback theme when per-tenant theme.json is unavailable */
+    this.applyTheme(DEFAULT_THEME);
+    this.theme$.next(DEFAULT_THEME);
   }
 
   observeTheme(): Observable<Theme | null> {

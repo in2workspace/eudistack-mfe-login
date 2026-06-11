@@ -27,7 +27,8 @@ describe('ThemeService', () => {
       footer: null,
       onboardingUrl: null,
       supportUrl: null,
-      walletUrl: null
+      walletUrl: null,
+      knowledgeBaseUrl: null
     },
     i18n: {
       defaultLang: 'es',
@@ -66,7 +67,7 @@ describe('ThemeService', () => {
     it('should fetch theme.json and emit theme', async () => {
       const loadPromise = service.load();
 
-      const req = httpMock.expectOne('assets/theme.json');
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
       expect(req.request.method).toBe('GET');
       req.flush(mockTheme);
 
@@ -78,7 +79,7 @@ describe('ThemeService', () => {
     it('should configure i18n when theme has i18n config', async () => {
       const loadPromise = service.load();
 
-      const req = httpMock.expectOne('assets/theme.json');
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
       req.flush(mockTheme);
 
       await loadPromise;
@@ -92,7 +93,7 @@ describe('ThemeService', () => {
       const themeNoI18n = { ...mockTheme, i18n: undefined as unknown as Theme['i18n'] };
       const loadPromise = service.load();
 
-      const req = httpMock.expectOne('assets/theme.json');
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
       req.flush(themeNoI18n);
 
       await loadPromise;
@@ -103,7 +104,7 @@ describe('ThemeService', () => {
     it('should set document title from branding name', async () => {
       const loadPromise = service.load();
 
-      const req = httpMock.expectOne('assets/theme.json');
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
       req.flush(mockTheme);
 
       await loadPromise;
@@ -114,7 +115,7 @@ describe('ThemeService', () => {
     it('should set favicon from branding faviconUrl', async () => {
       const loadPromise = service.load();
 
-      const req = httpMock.expectOne('assets/theme.json');
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
       req.flush(mockTheme);
 
       await loadPromise;
@@ -123,19 +124,20 @@ describe('ThemeService', () => {
       expect(faviconLink?.href).toBe('https://cdn.example.com/favicon.ico');
     });
 
-    it('should throw and emit error when fetch fails', async () => {
+    it('should apply default theme when fetch fails', async () => {
       const loadPromise = service.load();
 
-      const req = httpMock.expectOne('assets/theme.json');
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
       req.flush('Not Found', { status: 404, statusText: 'Not Found' });
 
-      await expect(loadPromise).rejects.toBeTruthy();
+      await expect(loadPromise).resolves.toBeUndefined();
+      expect(service.snapshot).toBeTruthy();
     });
 
     it('should apply CSS custom properties', async () => {
       const loadPromise = service.load();
 
-      const req = httpMock.expectOne('assets/theme.json');
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
       req.flush(mockTheme);
 
       await loadPromise;
@@ -158,7 +160,7 @@ describe('ThemeService', () => {
     it('should return theme after load', async () => {
       const loadPromise = service.load();
 
-      const req = httpMock.expectOne('assets/theme.json');
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
       req.flush(mockTheme);
 
       await loadPromise;
@@ -176,7 +178,7 @@ describe('ThemeService', () => {
 
       const loadPromise = service.load();
 
-      const req = httpMock.expectOne('assets/theme.json');
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
       req.flush(mockTheme);
 
       await loadPromise;
@@ -196,7 +198,7 @@ describe('ThemeService', () => {
     it('should return tenantDomain after load', async () => {
       const loadPromise = service.load();
 
-      const req = httpMock.expectOne('assets/theme.json');
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
       req.flush(mockTheme);
 
       await loadPromise;
@@ -212,7 +214,7 @@ describe('ThemeService', () => {
       const blueTheme = { ...mockTheme, branding: { ...mockTheme.branding, primaryColor: '#2563EB' } };
       const loadPromise = service.load();
 
-      const req = httpMock.expectOne('assets/theme.json');
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
       req.flush(blueTheme);
 
       await loadPromise;
@@ -225,7 +227,7 @@ describe('ThemeService', () => {
       const redTheme = { ...mockTheme, branding: { ...mockTheme.branding, primaryColor: '#DC2626' } };
       const loadPromise = service.load();
 
-      const req = httpMock.expectOne('assets/theme.json');
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
       req.flush(redTheme);
 
       await loadPromise;
@@ -238,7 +240,7 @@ describe('ThemeService', () => {
       const darkTheme = { ...mockTheme, branding: { ...mockTheme.branding, primaryColor: '#0A1628' } };
       const loadPromise = service.load();
 
-      const req = httpMock.expectOne('assets/theme.json');
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
       req.flush(darkTheme);
 
       await loadPromise;
@@ -251,7 +253,7 @@ describe('ThemeService', () => {
   it('should set document.documentElement.lang to defaultLang after load', async () => {
     const loadPromise = service.load();
 
-    const req = httpMock.expectOne('assets/theme.json');
+    const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
     req.flush(mockTheme);
 
     await loadPromise;
@@ -262,7 +264,7 @@ describe('ThemeService', () => {
   it('should update document.documentElement.lang when onLangChange emits', async () => {
     const loadPromise = service.load();
 
-    const req = httpMock.expectOne('assets/theme.json');
+    const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
     req.flush(mockTheme);
 
     await loadPromise;
