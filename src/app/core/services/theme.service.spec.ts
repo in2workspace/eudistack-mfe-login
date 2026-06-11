@@ -269,9 +269,166 @@ describe('ThemeService', () => {
 
     await loadPromise;
 
-    const langChangeCallback = translateService.onLangChange.subscribe.mock.calls[0][0];
+    const langChangeCallback = (translateService.onLangChange.subscribe as jest.Mock).mock.calls[0][0];
     langChangeCallback({ lang: 'ca' });
 
     expect(document.documentElement.lang).toBe('ca');
+  });
+
+  // ── Per-tenant load: resolution and fallback ──────────────────────────────
+
+  describe('load — per-tenant resolution and fallback', () => {
+    const originalLocation = window.location;
+
+    afterEach(() => {
+      Object.defineProperty(window, 'location', {
+        value: originalLocation,
+        writable: true,
+        configurable: true,
+      });
+    });
+
+    // AC-01 — per-tenant load applies branding
+    it('AC-01: loads per-tenant theme.json when hostname resolves to a valid tenant', async () => {
+      Object.defineProperty(window, 'location', {
+        value: { hostname: 'dome.stg.eudistack.net' },
+        writable: true,
+        configurable: true,
+      });
+
+      const loadPromise = service.load();
+
+      const req = httpMock.expectOne('/assets/tenants/dome/theme.json');
+      expect(req.request.method).toBe('GET');
+      req.flush({
+        ...mockTheme,
+        tenantDomain: 'dome',
+        branding: { ...mockTheme.branding, primaryColor: '#1A56DB' },
+      });
+
+      await loadPromise;
+
+      expect(service.snapshot?.tenantDomain).toBe('dome');
+    });
+
+    // AC-02 + ES-01 — 404 → fallback (applyDefault, no throw)
+    it('AC-02/ES-01: falls back to DEFAULT_THEME when tenant theme.json returns 404', async () => {
+      Object.defineProperty(window, 'location', {
+        value: { hostname: 'dome.stg.eudistack.net' },
+        writable: true,
+        configurable: true,
+      });
+
+      const loadPromise = service.load();
+
+      const req = httpMock.expectOne('/assets/tenants/dome/theme.json');
+      req.flush('Not Found', { status: 404, statusText: 'Not Found' });
+
+      await expect(loadPromise).resolves.toBeUndefined();
+      expect(service.snapshot?.tenantDomain).toBe('EUDISTACK');
+    });
+
+    // AC-02 + ES-02 — HTTP 400 (bad response) → fallback
+    it('AC-02/ES-02: falls back to DEFAULT_THEME when tenant theme.json returns 400', async () => {
+      Object.defineProperty(window, 'location', {
+        value: { hostname: 'dome.stg.eudistack.net' },
+        writable: true,
+        configurable: true,
+      });
+
+      const loadPromise = service.load();
+
+      const req = httpMock.expectOne('/assets/tenants/dome/theme.json');
+      req.flush('Bad Request', { status: 400, statusText: 'Bad Request' });
+
+      await expect(loadPromise).resolves.toBeUndefined();
+      expect(service.snapshot?.tenantDomain).toBe('EUDISTACK');
+    });
+
+    // AC-02 + ES-03 — HTTP 500 → fallback
+    it('AC-02/ES-03: falls back to DEFAULT_THEME when tenant theme.json returns 500', async () => {
+      Object.defineProperty(window, 'location', {
+        value: { hostname: 'dome.stg.eudistack.net' },
+        writable: true,
+        configurable: true,
+      });
+
+      const loadPromise = service.load();
+
+      const req = httpMock.expectOne('/assets/tenants/dome/theme.json');
+      req.flush('Internal Server Error', { status: 500, statusText: 'Internal Server Error' });
+
+      await expect(loadPromise).resolves.toBeUndefined();
+      expect(service.snapshot?.tenantDomain).toBe('EUDISTACK');
+    });
+
+    // AC-02 + ES-04 — timeout-like (408) → fallback
+    it('AC-02/ES-04: falls back to DEFAULT_THEME when tenant theme.json returns 408 (timeout-like)', async () => {
+      Object.defineProperty(window, 'location', {
+        value: { hostname: 'dome.stg.eudistack.net' },
+        writable: true,
+        configurable: true,
+      });
+
+      const loadPromise = service.load();
+
+      const req = httpMock.expectOne('/assets/tenants/dome/theme.json');
+      req.flush('Request Timeout', { status: 408, statusText: 'Request Timeout' });
+
+      await expect(loadPromise).resolves.toBeUndefined();
+      expect(service.snapshot?.tenantDomain).toBe('EUDISTACK');
+    });
+
+    // AC-04 + EC-04 — partial theme without embed codes → load OK, tenant branding applied
+    it('AC-04/EC-04: loads successfully when theme.json omits headerEmbedCode and footerEmbedCode', async () => {
+      Object.defineProperty(window, 'location', {
+        value: { hostname: 'dome.stg.eudistack.net' },
+        writable: true,
+        configurable: true,
+      });
+
+      const partialTheme: Theme = {
+        ...mockTheme,
+        tenantDomain: 'dome',
+        content: {
+          links: [],
+          footer: null,
+          onboardingUrl: null,
+          supportUrl: null,
+          walletUrl: null,
+          knowledgeBaseUrl: null,
+          // headerEmbedCode and footerEmbedCode deliberately omitted
+        },
+      };
+
+      const loadPromise = service.load();
+
+      const req = httpMock.expectOne('/assets/tenants/dome/theme.json');
+      req.flush(partialTheme);
+
+      await expect(loadPromise).resolves.toBeUndefined();
+      // Theme loaded from tenant — must NOT have fallen back to the default
+      expect(service.snapshot?.tenantDomain).not.toBe('EUDISTACK');
+    });
+
+    // ES-05 — invalid tenant identifier → resolveTenant returns FALLBACK_TENANT ('eudistack')
+    it('ES-05: invalid tenant identifier in hostname resolves to eudistack (path-traversal guard)', async () => {
+      Object.defineProperty(window, 'location', {
+        value: { hostname: '../evil.stg.eudistack.net' },
+        writable: true,
+        configurable: true,
+      });
+
+      const loadPromise = service.load();
+
+      // resolveTenant('../evil.stg.eudistack.net') → first segment '..' → fails /^[a-z0-9-]+$/ → 'eudistack'
+      const req = httpMock.expectOne('/assets/tenants/eudistack/theme.json');
+      req.flush('Not Found', { status: 404, statusText: 'Not Found' });
+
+      await expect(loadPromise).resolves.toBeUndefined();
+      // Key assertion: the URL contained 'eudistack', not '../evil'
+      expect(req.request.url).toBe('/assets/tenants/eudistack/theme.json');
+      expect(service.snapshot?.tenantDomain).toBe('EUDISTACK');
+    });
   });
 });
