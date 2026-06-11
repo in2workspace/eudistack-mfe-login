@@ -12,6 +12,12 @@ export interface Theme {
   content: {
     links: { label: string; url: string }[];
     footer: string | null;
+    headerEmbedCode?: string | null;
+    footerEmbedCode?: string | null;
+    /**
+     * @deprecated Use headerEmbedCode / footerEmbedCode instead.
+     * Ignored at runtime as of EUDISTACK-545. Kept for backward-compat (ADR-arch-005).
+     */
     onboardingUrl: string | null;
     supportUrl: string | null;
     walletUrl: string | null;
