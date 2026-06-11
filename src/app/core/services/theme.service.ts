@@ -119,11 +119,6 @@ export class ThemeService {
     }
   }
 
-  private applyDefault(): void {
-    this.applyTheme(DEFAULT_THEME);
-    this.theme$.next(DEFAULT_THEME);
-  }
-
   observeTheme(): Observable<Theme | null> {
     return this.theme$.asObservable();
   }
@@ -138,6 +133,11 @@ export class ThemeService {
       throw new Error('ThemeService: theme not loaded yet. Call load() before accessing tenantDomain.');
     }
     return theme.tenantDomain;
+  }
+
+  private applyDefault(): void {
+    this.applyTheme(DEFAULT_THEME);
+    this.theme$.next(DEFAULT_THEME);
   }
 
   private applyTheme(theme: Theme): void {
