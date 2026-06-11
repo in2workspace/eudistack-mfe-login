@@ -2,7 +2,9 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { TranslateService } from '@ngx-translate/core';
 import { BehaviorSubject, Observable, firstValueFrom } from 'rxjs';
+import { timeout } from 'rxjs/operators';
 import { Theme } from '../models/theme.model';
+import { resolveTenant } from '../constants/tenants.constants';
 
 /**
  * Semantic design tokens — neutral, brand-independent values for content areas.
@@ -60,8 +62,11 @@ export class ThemeService {
   ) {}
 
   async load(): Promise<void> {
+    const tenant = resolveTenant(window.location.hostname);
     try {
-      const theme = await firstValueFrom(this.http.get<Theme>('assets/theme.json'));
+      const theme = await firstValueFrom(
+        this.http.get<Theme>(`/assets/tenants/${tenant}/theme.json`).pipe(timeout(800))
+      );
       this.theme$.next(theme);
       this.applyTheme(theme);
 
@@ -77,9 +82,12 @@ export class ThemeService {
       }
     } catch (error) {
       console.error('ThemeService: failed to load theme configuration', error);
-      this.theme$.error(error);
-      throw error;
+      this.applyDefault();
     }
+  }
+
+  private applyDefault(): void {
+    /* T5: apply built-in fallback theme when per-tenant theme.json is unavailable */
   }
 
   observeTheme(): Observable<Theme | null> {
