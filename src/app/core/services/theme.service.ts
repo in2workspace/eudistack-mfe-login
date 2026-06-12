@@ -97,10 +97,12 @@ export class ThemeService {
 
   async load(): Promise<void> {
     const tenant = resolveTenant(window.location.hostname);
+    const assetsBase = `/assets/tenants/${tenant}`;
     try {
       const theme = await firstValueFrom(
-        this.http.get<Theme>(`/assets/tenants/${tenant}/theme.json`).pipe(timeout(800))
+        this.http.get<Theme>(`${assetsBase}/theme.json`).pipe(timeout(800))
       );
+      this.rewriteAssetPaths(theme, assetsBase);
       this.theme$.next(theme);
       this.applyTheme(theme);
 
@@ -135,6 +137,22 @@ export class ThemeService {
       throw new Error('ThemeService: theme not loaded yet. Call load() before accessing tenantDomain.');
     }
     return theme.tenantDomain;
+  }
+
+  private rewriteAssetPaths(theme: Theme, assetsBase: string): void {
+    const rewrite = (path: string | null | undefined): string | null => {
+      if (!path) return null;
+      if (path.startsWith('/assets/tenants/')) return path;
+      const normalized = path.startsWith('/') ? path.slice(1) : path;
+      if (normalized.startsWith('assets/tenant/')) {
+        return `${assetsBase}/${normalized.slice('assets/tenant/'.length)}`;
+      }
+      return path;
+    };
+    if (theme.branding) {
+      theme.branding.logoUrl = rewrite(theme.branding.logoUrl) as string;
+      theme.branding.faviconUrl = rewrite(theme.branding.faviconUrl) as string;
+    }
   }
 
   private applyDefault(): void {

@@ -8,6 +8,7 @@
 - **Deterministic fallback.** Any failure during theme load (404, 5xx, timeout ≥800 ms, malformed response) silently falls back to the built-in EUDIStack default theme. The bootstrap always completes; no blank screen on theme errors.
 - **Extended `Theme` contract.** `ThemeContent` now includes optional `headerEmbedCode: string | null` and `footerEmbedCode: string | null` fields for future US-002/003 embed slots. `onboardingUrl` is deprecated (kept for backward-compat).
 - **Path-traversal guard.** Resolved tenant identifiers are validated against `^[a-z0-9-]+$` before composing the asset URL (ES-05).
+- **Asset path rewriting.** `rewriteAssetPaths()` normalises `/assets/tenant/logo.png` → `/assets/tenants/{tenant}/logo.png` after loading the theme, matching the Wallet PWA pattern and fixing broken logos on non-sandbox tenants.
 
 ## [3.2.4] - 2026-05-19
 

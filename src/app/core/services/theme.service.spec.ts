@@ -275,6 +275,63 @@ describe('ThemeService', () => {
     expect(document.documentElement.lang).toBe('ca');
   });
 
+  // ── Asset path rewriting ─────────────────────────────────────────────────
+
+  describe('load — asset path rewriting', () => {
+    it('rewrites /assets/tenant/logo.png → /assets/tenants/dome/logo.png after load', async () => {
+      Object.defineProperty(window, 'location', {
+        value: { hostname: 'dome.stg.eudistack.net' },
+        writable: true,
+        configurable: true,
+      });
+
+      const tenantTheme: Theme = {
+        ...mockTheme,
+        branding: {
+          ...mockTheme.branding,
+          logoUrl: '/assets/tenant/logo.png',
+          faviconUrl: '/assets/tenant/favicon.png',
+        },
+      };
+
+      const loadPromise = service.load();
+      const req = httpMock.expectOne('/assets/tenants/dome/theme.json');
+      req.flush(tenantTheme);
+      await loadPromise;
+
+      expect(service.snapshot?.branding.logoUrl).toBe('/assets/tenants/dome/logo.png');
+      expect(service.snapshot?.branding.faviconUrl).toBe('/assets/tenants/dome/favicon.png');
+    });
+
+    it('leaves /assets/tenants/dome/logo.png untouched (already correct format)', async () => {
+      Object.defineProperty(window, 'location', {
+        value: { hostname: 'dome.stg.eudistack.net' },
+        writable: true,
+        configurable: true,
+      });
+
+      const tenantTheme: Theme = {
+        ...mockTheme,
+        branding: { ...mockTheme.branding, logoUrl: '/assets/tenants/dome/logo.png' },
+      };
+
+      const loadPromise = service.load();
+      const req = httpMock.expectOne('/assets/tenants/dome/theme.json');
+      req.flush(tenantTheme);
+      await loadPromise;
+
+      expect(service.snapshot?.branding.logoUrl).toBe('/assets/tenants/dome/logo.png');
+    });
+
+    afterEach(() => {
+      Object.defineProperty(window, 'location', {
+        value: { hostname: 'localhost' },
+        writable: true,
+        configurable: true,
+      });
+    });
+  });
+
   // ── Per-tenant load: resolution and fallback ──────────────────────────────
 
   describe('load — per-tenant resolution and fallback', () => {
