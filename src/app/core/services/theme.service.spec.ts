@@ -345,6 +345,25 @@ describe('ThemeService', () => {
       expect(service.snapshot?.tenantDomain).toBe('EUDISTACK');
     });
 
+    // AC-02 + ES-02 — 200 OK + JSON malformado → parse error → fallback (AC literal)
+    it('AC-02/ES-02b: falls back to DEFAULT_THEME when tenant theme.json returns 200 with malformed JSON', async () => {
+      Object.defineProperty(window, 'location', {
+        value: { hostname: 'dome.stg.eudistack.net' },
+        writable: true,
+        configurable: true,
+      });
+
+      const loadPromise = service.load();
+
+      const req = httpMock.expectOne('/assets/tenants/dome/theme.json');
+      // Flush a 200 with an invalid JSON body — HttpClient throws HttpResponseParseError,
+      // caught by the catch block in load() which calls applyDefault().
+      req.flush('{broken json', { status: 200, statusText: 'OK' });
+
+      await expect(loadPromise).resolves.toBeUndefined();
+      expect(service.snapshot?.tenantDomain).toBe('EUDISTACK');
+    });
+
     // AC-02 + ES-03 — HTTP 500 → fallback
     it('AC-02/ES-03: falls back to DEFAULT_THEME when tenant theme.json returns 500', async () => {
       Object.defineProperty(window, 'location', {

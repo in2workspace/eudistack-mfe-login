@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { TranslateService } from '@ngx-translate/core';
-import { BehaviorSubject, Observable, firstValueFrom } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, firstValueFrom } from 'rxjs';
 import { timeout } from 'rxjs/operators';
 import { Theme } from '../models/theme.model';
 import { resolveTenant } from '../constants/tenants.constants';
@@ -88,6 +88,7 @@ const SEMANTIC_DEFAULTS: Record<string, string> = {
 @Injectable({ providedIn: 'root' })
 export class ThemeService {
   private theme$ = new BehaviorSubject<Theme | null>(null);
+  private langChangeSub?: Subscription;
 
   constructor(
     private http: HttpClient,
@@ -109,7 +110,8 @@ export class ThemeService {
         this.translate.use(theme.i18n.defaultLang);
         // WCAG 3.1.1 — keep HTML lang attribute in sync with active language
         document.documentElement.lang = theme.i18n.defaultLang;
-        this.translate.onLangChange.subscribe(event => {
+        this.langChangeSub?.unsubscribe();
+        this.langChangeSub = this.translate.onLangChange.subscribe(event => {
           document.documentElement.lang = event.lang;
         });
       }
