@@ -26,6 +26,7 @@ describe('LoginComponent', () => {
   let theme$: BehaviorSubject<Theme | null>;
 
   const baseTheme: Theme = {
+    tenantDomain: 'test',
     branding: {
       name: 'Test',
       primaryColor: '#000',
@@ -38,9 +39,12 @@ describe('LoginComponent', () => {
     content: {
       links: [],
       footer: null,
+      headerEmbedCode: null,
+      footerEmbedCode: null,
       onboardingUrl: null,
       supportUrl: null,
-      walletUrl: null
+      walletUrl: null,
+      knowledgeBaseUrl: null,
     },
     i18n: { defaultLang: 'en', available: ['en'] }
   };
