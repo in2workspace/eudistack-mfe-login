@@ -9,6 +9,12 @@
   padding: 0;
 }
 
+.embedded-header {
+  width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
 .header {
   display: flex;
   align-items: center;

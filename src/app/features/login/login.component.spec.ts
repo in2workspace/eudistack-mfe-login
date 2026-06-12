@@ -69,7 +69,10 @@ describe('LoginComponent', () => {
         },
         {
           provide: ThemeService,
-          useValue: { observeTheme: () => theme$.asObservable() }
+          useValue: {
+            observeTheme: () => theme$.asObservable(),
+            sanitizeEmbedHtml: jest.fn().mockReturnValue(null),
+          }
         }
       ]
     }).overrideComponent(LoginComponent, {

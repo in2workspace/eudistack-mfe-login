@@ -1,3 +1,6 @@
+<!-- Tenant embedded header (sanitized via DOMPurify — architecture.md §6 / ADR-arch-002/003) -->
+<div *ngIf="headerHtml" class="embedded-header" [innerHTML]="headerHtml"></div>
+
 <!-- Header with logo -->
 <header class="header" *ngIf="theme?.branding?.logoUrl">
   <img [src]="theme!.branding.logoUrl"
