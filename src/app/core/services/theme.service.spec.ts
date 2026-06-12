@@ -27,7 +27,8 @@ describe('ThemeService', () => {
       footer: null,
       onboardingUrl: null,
       supportUrl: null,
-      walletUrl: null
+      walletUrl: null,
+      knowledgeBaseUrl: null
     },
     i18n: {
       defaultLang: 'es',
@@ -66,7 +67,7 @@ describe('ThemeService', () => {
     it('should fetch theme.json and emit theme', async () => {
       const loadPromise = service.load();
 
-      const req = httpMock.expectOne('assets/theme.json');
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
       expect(req.request.method).toBe('GET');
       req.flush(mockTheme);
 
@@ -78,7 +79,7 @@ describe('ThemeService', () => {
     it('should configure i18n when theme has i18n config', async () => {
       const loadPromise = service.load();
 
-      const req = httpMock.expectOne('assets/theme.json');
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
       req.flush(mockTheme);
 
       await loadPromise;
@@ -92,7 +93,7 @@ describe('ThemeService', () => {
       const themeNoI18n = { ...mockTheme, i18n: undefined as unknown as Theme['i18n'] };
       const loadPromise = service.load();
 
-      const req = httpMock.expectOne('assets/theme.json');
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
       req.flush(themeNoI18n);
 
       await loadPromise;
@@ -103,7 +104,7 @@ describe('ThemeService', () => {
     it('should set document title from branding name', async () => {
       const loadPromise = service.load();
 
-      const req = httpMock.expectOne('assets/theme.json');
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
       req.flush(mockTheme);
 
       await loadPromise;
@@ -114,7 +115,7 @@ describe('ThemeService', () => {
     it('should set favicon from branding faviconUrl', async () => {
       const loadPromise = service.load();
 
-      const req = httpMock.expectOne('assets/theme.json');
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
       req.flush(mockTheme);
 
       await loadPromise;
@@ -123,19 +124,20 @@ describe('ThemeService', () => {
       expect(faviconLink?.href).toBe('https://cdn.example.com/favicon.ico');
     });
 
-    it('should throw and emit error when fetch fails', async () => {
+    it('should apply default theme when fetch fails', async () => {
       const loadPromise = service.load();
 
-      const req = httpMock.expectOne('assets/theme.json');
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
       req.flush('Not Found', { status: 404, statusText: 'Not Found' });
 
-      await expect(loadPromise).rejects.toBeTruthy();
+      await expect(loadPromise).resolves.toBeUndefined();
+      expect(service.snapshot).toBeTruthy();
     });
 
     it('should apply CSS custom properties', async () => {
       const loadPromise = service.load();
 
-      const req = httpMock.expectOne('assets/theme.json');
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
       req.flush(mockTheme);
 
       await loadPromise;
@@ -158,7 +160,7 @@ describe('ThemeService', () => {
     it('should return theme after load', async () => {
       const loadPromise = service.load();
 
-      const req = httpMock.expectOne('assets/theme.json');
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
       req.flush(mockTheme);
 
       await loadPromise;
@@ -176,7 +178,7 @@ describe('ThemeService', () => {
 
       const loadPromise = service.load();
 
-      const req = httpMock.expectOne('assets/theme.json');
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
       req.flush(mockTheme);
 
       await loadPromise;
@@ -196,7 +198,7 @@ describe('ThemeService', () => {
     it('should return tenantDomain after load', async () => {
       const loadPromise = service.load();
 
-      const req = httpMock.expectOne('assets/theme.json');
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
       req.flush(mockTheme);
 
       await loadPromise;
@@ -212,7 +214,7 @@ describe('ThemeService', () => {
       const blueTheme = { ...mockTheme, branding: { ...mockTheme.branding, primaryColor: '#2563EB' } };
       const loadPromise = service.load();
 
-      const req = httpMock.expectOne('assets/theme.json');
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
       req.flush(blueTheme);
 
       await loadPromise;
@@ -225,7 +227,7 @@ describe('ThemeService', () => {
       const redTheme = { ...mockTheme, branding: { ...mockTheme.branding, primaryColor: '#DC2626' } };
       const loadPromise = service.load();
 
-      const req = httpMock.expectOne('assets/theme.json');
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
       req.flush(redTheme);
 
       await loadPromise;
@@ -238,7 +240,7 @@ describe('ThemeService', () => {
       const darkTheme = { ...mockTheme, branding: { ...mockTheme.branding, primaryColor: '#0A1628' } };
       const loadPromise = service.load();
 
-      const req = httpMock.expectOne('assets/theme.json');
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
       req.flush(darkTheme);
 
       await loadPromise;
@@ -251,7 +253,7 @@ describe('ThemeService', () => {
   it('should set document.documentElement.lang to defaultLang after load', async () => {
     const loadPromise = service.load();
 
-    const req = httpMock.expectOne('assets/theme.json');
+    const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
     req.flush(mockTheme);
 
     await loadPromise;
@@ -262,14 +264,247 @@ describe('ThemeService', () => {
   it('should update document.documentElement.lang when onLangChange emits', async () => {
     const loadPromise = service.load();
 
-    const req = httpMock.expectOne('assets/theme.json');
+    const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
     req.flush(mockTheme);
 
     await loadPromise;
 
-    const langChangeCallback = translateService.onLangChange.subscribe.mock.calls[0][0];
+    const langChangeCallback = (translateService.onLangChange.subscribe as jest.Mock).mock.calls[0][0];
     langChangeCallback({ lang: 'ca' });
 
     expect(document.documentElement.lang).toBe('ca');
+  });
+
+  // ── Asset path rewriting ─────────────────────────────────────────────────
+
+  describe('load — asset path rewriting', () => {
+    it('rewrites /assets/tenant/logo.png → /assets/tenants/dome/logo.png after load', async () => {
+      Object.defineProperty(window, 'location', {
+        value: { hostname: 'dome.stg.eudistack.net' },
+        writable: true,
+        configurable: true,
+      });
+
+      const tenantTheme: Theme = {
+        ...mockTheme,
+        branding: {
+          ...mockTheme.branding,
+          logoUrl: '/assets/tenant/logo.png',
+          faviconUrl: '/assets/tenant/favicon.png',
+        },
+      };
+
+      const loadPromise = service.load();
+      const req = httpMock.expectOne('/assets/tenants/dome/theme.json');
+      req.flush(tenantTheme);
+      await loadPromise;
+
+      expect(service.snapshot?.branding.logoUrl).toBe('/assets/tenants/dome/logo.png');
+      expect(service.snapshot?.branding.faviconUrl).toBe('/assets/tenants/dome/favicon.png');
+    });
+
+    it('leaves /assets/tenants/dome/logo.png untouched (already correct format)', async () => {
+      Object.defineProperty(window, 'location', {
+        value: { hostname: 'dome.stg.eudistack.net' },
+        writable: true,
+        configurable: true,
+      });
+
+      const tenantTheme: Theme = {
+        ...mockTheme,
+        branding: { ...mockTheme.branding, logoUrl: '/assets/tenants/dome/logo.png' },
+      };
+
+      const loadPromise = service.load();
+      const req = httpMock.expectOne('/assets/tenants/dome/theme.json');
+      req.flush(tenantTheme);
+      await loadPromise;
+
+      expect(service.snapshot?.branding.logoUrl).toBe('/assets/tenants/dome/logo.png');
+    });
+
+    afterEach(() => {
+      Object.defineProperty(window, 'location', {
+        value: { hostname: 'localhost' },
+        writable: true,
+        configurable: true,
+      });
+    });
+  });
+
+  // ── Per-tenant load: resolution and fallback ──────────────────────────────
+
+  describe('load — per-tenant resolution and fallback', () => {
+    const originalLocation = window.location;
+
+    afterEach(() => {
+      Object.defineProperty(window, 'location', {
+        value: originalLocation,
+        writable: true,
+        configurable: true,
+      });
+    });
+
+    // AC-01 — per-tenant load applies branding
+    it('AC-01: loads per-tenant theme.json when hostname resolves to a valid tenant', async () => {
+      Object.defineProperty(window, 'location', {
+        value: { hostname: 'dome.stg.eudistack.net' },
+        writable: true,
+        configurable: true,
+      });
+
+      const loadPromise = service.load();
+
+      const req = httpMock.expectOne('/assets/tenants/dome/theme.json');
+      expect(req.request.method).toBe('GET');
+      req.flush({
+        ...mockTheme,
+        tenantDomain: 'dome',
+        branding: { ...mockTheme.branding, primaryColor: '#1A56DB' },
+      });
+
+      await loadPromise;
+
+      expect(service.snapshot?.tenantDomain).toBe('dome');
+    });
+
+    // AC-02 + ES-01 — 404 → fallback (applyDefault, no throw)
+    it('AC-02/ES-01: falls back to DEFAULT_THEME when tenant theme.json returns 404', async () => {
+      Object.defineProperty(window, 'location', {
+        value: { hostname: 'dome.stg.eudistack.net' },
+        writable: true,
+        configurable: true,
+      });
+
+      const loadPromise = service.load();
+
+      const req = httpMock.expectOne('/assets/tenants/dome/theme.json');
+      req.flush('Not Found', { status: 404, statusText: 'Not Found' });
+
+      await expect(loadPromise).resolves.toBeUndefined();
+      expect(service.snapshot?.tenantDomain).toBe('EUDISTACK');
+    });
+
+    // AC-02 + ES-02 — HTTP 400 (bad response) → fallback
+    it('AC-02/ES-02: falls back to DEFAULT_THEME when tenant theme.json returns 400', async () => {
+      Object.defineProperty(window, 'location', {
+        value: { hostname: 'dome.stg.eudistack.net' },
+        writable: true,
+        configurable: true,
+      });
+
+      const loadPromise = service.load();
+
+      const req = httpMock.expectOne('/assets/tenants/dome/theme.json');
+      req.flush('Bad Request', { status: 400, statusText: 'Bad Request' });
+
+      await expect(loadPromise).resolves.toBeUndefined();
+      expect(service.snapshot?.tenantDomain).toBe('EUDISTACK');
+    });
+
+    // AC-02 + ES-02 — 200 OK + JSON malformado → parse error → fallback (AC literal)
+    it('AC-02/ES-02b: falls back to DEFAULT_THEME when tenant theme.json returns 200 with malformed JSON', async () => {
+      Object.defineProperty(window, 'location', {
+        value: { hostname: 'dome.stg.eudistack.net' },
+        writable: true,
+        configurable: true,
+      });
+
+      const loadPromise = service.load();
+
+      const req = httpMock.expectOne('/assets/tenants/dome/theme.json');
+      // Flush a 200 with an invalid JSON body — HttpClient throws HttpResponseParseError,
+      // caught by the catch block in load() which calls applyDefault().
+      req.flush('{broken json', { status: 200, statusText: 'OK' });
+
+      await expect(loadPromise).resolves.toBeUndefined();
+      expect(service.snapshot?.tenantDomain).toBe('EUDISTACK');
+    });
+
+    // AC-02 + ES-03 — HTTP 500 → fallback
+    it('AC-02/ES-03: falls back to DEFAULT_THEME when tenant theme.json returns 500', async () => {
+      Object.defineProperty(window, 'location', {
+        value: { hostname: 'dome.stg.eudistack.net' },
+        writable: true,
+        configurable: true,
+      });
+
+      const loadPromise = service.load();
+
+      const req = httpMock.expectOne('/assets/tenants/dome/theme.json');
+      req.flush('Internal Server Error', { status: 500, statusText: 'Internal Server Error' });
+
+      await expect(loadPromise).resolves.toBeUndefined();
+      expect(service.snapshot?.tenantDomain).toBe('EUDISTACK');
+    });
+
+    // AC-02 + ES-04 — timeout-like (408) → fallback
+    it('AC-02/ES-04: falls back to DEFAULT_THEME when tenant theme.json returns 408 (timeout-like)', async () => {
+      Object.defineProperty(window, 'location', {
+        value: { hostname: 'dome.stg.eudistack.net' },
+        writable: true,
+        configurable: true,
+      });
+
+      const loadPromise = service.load();
+
+      const req = httpMock.expectOne('/assets/tenants/dome/theme.json');
+      req.flush('Request Timeout', { status: 408, statusText: 'Request Timeout' });
+
+      await expect(loadPromise).resolves.toBeUndefined();
+      expect(service.snapshot?.tenantDomain).toBe('EUDISTACK');
+    });
+
+    // AC-04 + EC-04 — partial theme without embed codes → load OK, tenant branding applied
+    it('AC-04/EC-04: loads successfully when theme.json omits headerEmbedCode and footerEmbedCode', async () => {
+      Object.defineProperty(window, 'location', {
+        value: { hostname: 'dome.stg.eudistack.net' },
+        writable: true,
+        configurable: true,
+      });
+
+      const partialTheme: Theme = {
+        ...mockTheme,
+        tenantDomain: 'dome',
+        content: {
+          links: [],
+          footer: null,
+          onboardingUrl: null,
+          supportUrl: null,
+          walletUrl: null,
+          knowledgeBaseUrl: null,
+          // headerEmbedCode and footerEmbedCode deliberately omitted
+        },
+      };
+
+      const loadPromise = service.load();
+
+      const req = httpMock.expectOne('/assets/tenants/dome/theme.json');
+      req.flush(partialTheme);
+
+      await expect(loadPromise).resolves.toBeUndefined();
+      // Theme loaded from tenant — must NOT have fallen back to the default
+      expect(service.snapshot?.tenantDomain).not.toBe('EUDISTACK');
+    });
+
+    // ES-05 — invalid tenant identifier → resolveTenant returns FALLBACK_TENANT ('eudistack')
+    it('ES-05: invalid tenant identifier in hostname resolves to eudistack (path-traversal guard)', async () => {
+      Object.defineProperty(window, 'location', {
+        value: { hostname: '../evil.stg.eudistack.net' },
+        writable: true,
+        configurable: true,
+      });
+
+      const loadPromise = service.load();
+
+      // resolveTenant('../evil.stg.eudistack.net') → first segment '..' → fails /^[a-z0-9-]+$/ → 'eudistack'
+      const req = httpMock.expectOne('/assets/tenants/eudistack/theme.json');
+      req.flush('Not Found', { status: 404, statusText: 'Not Found' });
+
+      await expect(loadPromise).resolves.toBeUndefined();
+      // Key assertion: the URL contained 'eudistack', not '../evil'
+      expect(req.request.url).toBe('/assets/tenants/eudistack/theme.json');
+      expect(service.snapshot?.tenantDomain).toBe('EUDISTACK');
+    });
   });
 });

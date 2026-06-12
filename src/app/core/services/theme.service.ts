@@ -1,8 +1,43 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { TranslateService } from '@ngx-translate/core';
-import { BehaviorSubject, Observable, firstValueFrom } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, firstValueFrom } from 'rxjs';
+import { timeout } from 'rxjs/operators';
 import { Theme } from '../models/theme.model';
+import { resolveTenant } from '../constants/tenants.constants';
+
+/**
+ * Built-in EUDIStack fallback theme applied when the per-tenant theme.json
+ * cannot be loaded (network error, 404, timeout). Mirrors src/assets/theme.json
+ * as a TypeScript constant to avoid a second HTTP round-trip on failure.
+ * Fields without tenant embed codes are explicitly null (AC-04 backward-compat).
+ */
+const DEFAULT_THEME: Theme = {
+  tenantDomain: 'EUDISTACK',
+  branding: {
+    name: 'EUDIStack',
+    primaryColor: '#0F2B5B',
+    primaryContrastColor: '#ffffff',
+    secondaryColor: '#00BFA6',
+    secondaryContrastColor: '#ffffff',
+    logoUrl: 'assets/logos/logo.svg',
+    faviconUrl: 'assets/favicon.svg',
+  },
+  content: {
+    links: [],
+    footer: null,
+    headerEmbedCode: null,
+    footerEmbedCode: null,
+    knowledgeBaseUrl: 'https://docs.eudistack.net/',
+    onboardingUrl: null,
+    supportUrl: null,
+    walletUrl: '/wallet',
+  },
+  i18n: {
+    defaultLang: 'es',
+    available: ['en', 'es'],
+  },
+};
 
 /**
  * Semantic design tokens — neutral, brand-independent values for content areas.
@@ -53,6 +88,7 @@ const SEMANTIC_DEFAULTS: Record<string, string> = {
 @Injectable({ providedIn: 'root' })
 export class ThemeService {
   private theme$ = new BehaviorSubject<Theme | null>(null);
+  private langChangeSub?: Subscription;
 
   constructor(
     private http: HttpClient,
@@ -60,8 +96,13 @@ export class ThemeService {
   ) {}
 
   async load(): Promise<void> {
+    const tenant = resolveTenant(window.location.hostname);
+    const assetsBase = `/assets/tenants/${tenant}`;
     try {
-      const theme = await firstValueFrom(this.http.get<Theme>('assets/theme.json'));
+      const theme = await firstValueFrom(
+        this.http.get<Theme>(`${assetsBase}/theme.json`).pipe(timeout(800))
+      );
+      this.rewriteAssetPaths(theme, assetsBase);
       this.theme$.next(theme);
       this.applyTheme(theme);
 
@@ -71,14 +112,14 @@ export class ThemeService {
         this.translate.use(theme.i18n.defaultLang);
         // WCAG 3.1.1 — keep HTML lang attribute in sync with active language
         document.documentElement.lang = theme.i18n.defaultLang;
-        this.translate.onLangChange.subscribe(event => {
+        this.langChangeSub?.unsubscribe();
+        this.langChangeSub = this.translate.onLangChange.subscribe(event => {
           document.documentElement.lang = event.lang;
         });
       }
     } catch (error) {
       console.error('ThemeService: failed to load theme configuration', error);
-      this.theme$.error(error);
-      throw error;
+      this.applyDefault();
     }
   }
 
@@ -96,6 +137,27 @@ export class ThemeService {
       throw new Error('ThemeService: theme not loaded yet. Call load() before accessing tenantDomain.');
     }
     return theme.tenantDomain;
+  }
+
+  private rewriteAssetPaths(theme: Theme, assetsBase: string): void {
+    const rewrite = (path: string | null | undefined): string | null => {
+      if (!path) return null;
+      if (path.startsWith('/assets/tenants/')) return path;
+      const normalized = path.startsWith('/') ? path.slice(1) : path;
+      if (normalized.startsWith('assets/tenant/')) {
+        return `${assetsBase}/${normalized.slice('assets/tenant/'.length)}`;
+      }
+      return path;
+    };
+    if (theme.branding) {
+      theme.branding.logoUrl = rewrite(theme.branding.logoUrl) as string;
+      theme.branding.faviconUrl = rewrite(theme.branding.faviconUrl) as string;
+    }
+  }
+
+  private applyDefault(): void {
+    this.applyTheme(DEFAULT_THEME);
+    this.theme$.next(DEFAULT_THEME);
   }
 
   private applyTheme(theme: Theme): void {
