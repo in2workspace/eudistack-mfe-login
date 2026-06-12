@@ -1,15 +1,18 @@
+import { WritableSignal, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { TranslateService } from '@ngx-translate/core';
 
 import { ThemeService } from './theme.service';
+import { TenantService } from './tenant.service';
 import { Theme } from '../models/theme.model';
 
 describe('ThemeService', () => {
   let service: ThemeService;
   let httpMock: HttpTestingController;
   let translateService: jest.Mocked<TranslateService>;
+  let tenantSignal: WritableSignal<string>;
 
   const mockTheme: Theme = {
     tenantDomain: 'test.example.com',
@@ -37,6 +40,8 @@ describe('ThemeService', () => {
   };
 
   beforeEach(() => {
+    tenantSignal = signal('localhost');
+
     translateService = {
       addLangs: jest.fn(),
       setDefaultLang: jest.fn(),
@@ -49,7 +54,8 @@ describe('ThemeService', () => {
         ThemeService,
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: TranslateService, useValue: translateService }
+        { provide: TranslateService, useValue: translateService },
+        { provide: TenantService, useValue: { tenant: tenantSignal } }
       ]
     });
 
@@ -278,13 +284,11 @@ describe('ThemeService', () => {
   // ── Asset path rewriting ─────────────────────────────────────────────────
 
   describe('load — asset path rewriting', () => {
-    it('rewrites /assets/tenant/logo.png → /assets/tenants/dome/logo.png after load', async () => {
-      Object.defineProperty(window, 'location', {
-        value: { hostname: 'dome.stg.eudistack.net' },
-        writable: true,
-        configurable: true,
-      });
+    beforeEach(() => {
+      tenantSignal.set('dome');
+    });
 
+    it('rewrites /assets/tenant/logo.png → /assets/tenants/dome/logo.png after load', async () => {
       const tenantTheme: Theme = {
         ...mockTheme,
         branding: {
@@ -304,12 +308,6 @@ describe('ThemeService', () => {
     });
 
     it('leaves /assets/tenants/dome/logo.png untouched (already correct format)', async () => {
-      Object.defineProperty(window, 'location', {
-        value: { hostname: 'dome.stg.eudistack.net' },
-        writable: true,
-        configurable: true,
-      });
-
       const tenantTheme: Theme = {
         ...mockTheme,
         branding: { ...mockTheme.branding, logoUrl: '/assets/tenants/dome/logo.png' },
@@ -322,37 +320,17 @@ describe('ThemeService', () => {
 
       expect(service.snapshot?.branding.logoUrl).toBe('/assets/tenants/dome/logo.png');
     });
-
-    afterEach(() => {
-      Object.defineProperty(window, 'location', {
-        value: { hostname: 'localhost' },
-        writable: true,
-        configurable: true,
-      });
-    });
   });
 
   // ── Per-tenant load: resolution and fallback ──────────────────────────────
 
   describe('load — per-tenant resolution and fallback', () => {
-    const originalLocation = window.location;
-
-    afterEach(() => {
-      Object.defineProperty(window, 'location', {
-        value: originalLocation,
-        writable: true,
-        configurable: true,
-      });
+    beforeEach(() => {
+      tenantSignal.set('dome');
     });
 
     // AC-01 — per-tenant load applies branding
-    it('AC-01: loads per-tenant theme.json when hostname resolves to a valid tenant', async () => {
-      Object.defineProperty(window, 'location', {
-        value: { hostname: 'dome.stg.eudistack.net' },
-        writable: true,
-        configurable: true,
-      });
-
+    it('AC-01: loads per-tenant theme.json when TenantService resolves to a known tenant', async () => {
       const loadPromise = service.load();
 
       const req = httpMock.expectOne('/assets/tenants/dome/theme.json');
@@ -370,12 +348,6 @@ describe('ThemeService', () => {
 
     // AC-02 + ES-01 — 404 → fallback (applyDefault, no throw)
     it('AC-02/ES-01: falls back to DEFAULT_THEME when tenant theme.json returns 404', async () => {
-      Object.defineProperty(window, 'location', {
-        value: { hostname: 'dome.stg.eudistack.net' },
-        writable: true,
-        configurable: true,
-      });
-
       const loadPromise = service.load();
 
       const req = httpMock.expectOne('/assets/tenants/dome/theme.json');
@@ -387,12 +359,6 @@ describe('ThemeService', () => {
 
     // AC-02 + ES-02 — HTTP 400 (bad response) → fallback
     it('AC-02/ES-02: falls back to DEFAULT_THEME when tenant theme.json returns 400', async () => {
-      Object.defineProperty(window, 'location', {
-        value: { hostname: 'dome.stg.eudistack.net' },
-        writable: true,
-        configurable: true,
-      });
-
       const loadPromise = service.load();
 
       const req = httpMock.expectOne('/assets/tenants/dome/theme.json');
@@ -404,17 +370,9 @@ describe('ThemeService', () => {
 
     // AC-02 + ES-02 — 200 OK + JSON malformado → parse error → fallback (AC literal)
     it('AC-02/ES-02b: falls back to DEFAULT_THEME when tenant theme.json returns 200 with malformed JSON', async () => {
-      Object.defineProperty(window, 'location', {
-        value: { hostname: 'dome.stg.eudistack.net' },
-        writable: true,
-        configurable: true,
-      });
-
       const loadPromise = service.load();
 
       const req = httpMock.expectOne('/assets/tenants/dome/theme.json');
-      // Flush a 200 with an invalid JSON body — HttpClient throws HttpResponseParseError,
-      // caught by the catch block in load() which calls applyDefault().
       req.flush('{broken json', { status: 200, statusText: 'OK' });
 
       await expect(loadPromise).resolves.toBeUndefined();
@@ -423,12 +381,6 @@ describe('ThemeService', () => {
 
     // AC-02 + ES-03 — HTTP 500 → fallback
     it('AC-02/ES-03: falls back to DEFAULT_THEME when tenant theme.json returns 500', async () => {
-      Object.defineProperty(window, 'location', {
-        value: { hostname: 'dome.stg.eudistack.net' },
-        writable: true,
-        configurable: true,
-      });
-
       const loadPromise = service.load();
 
       const req = httpMock.expectOne('/assets/tenants/dome/theme.json');
@@ -440,12 +392,6 @@ describe('ThemeService', () => {
 
     // AC-02 + ES-04 — timeout-like (408) → fallback
     it('AC-02/ES-04: falls back to DEFAULT_THEME when tenant theme.json returns 408 (timeout-like)', async () => {
-      Object.defineProperty(window, 'location', {
-        value: { hostname: 'dome.stg.eudistack.net' },
-        writable: true,
-        configurable: true,
-      });
-
       const loadPromise = service.load();
 
       const req = httpMock.expectOne('/assets/tenants/dome/theme.json');
@@ -457,12 +403,6 @@ describe('ThemeService', () => {
 
     // AC-04 + EC-04 — partial theme without embed codes → load OK, tenant branding applied
     it('AC-04/EC-04: loads successfully when theme.json omits headerEmbedCode and footerEmbedCode', async () => {
-      Object.defineProperty(window, 'location', {
-        value: { hostname: 'dome.stg.eudistack.net' },
-        writable: true,
-        configurable: true,
-      });
-
       const partialTheme: Theme = {
         ...mockTheme,
         tenantDomain: 'dome',
@@ -473,7 +413,6 @@ describe('ThemeService', () => {
           supportUrl: null,
           walletUrl: null,
           knowledgeBaseUrl: null,
-          // headerEmbedCode and footerEmbedCode deliberately omitted
         },
       };
 
@@ -483,26 +422,20 @@ describe('ThemeService', () => {
       req.flush(partialTheme);
 
       await expect(loadPromise).resolves.toBeUndefined();
-      // Theme loaded from tenant — must NOT have fallen back to the default
       expect(service.snapshot?.tenantDomain).not.toBe('EUDISTACK');
     });
 
-    // ES-05 — invalid tenant identifier → resolveTenant returns FALLBACK_TENANT ('eudistack')
-    it('ES-05: invalid tenant identifier in hostname resolves to eudistack (path-traversal guard)', async () => {
-      Object.defineProperty(window, 'location', {
-        value: { hostname: '../evil.stg.eudistack.net' },
-        writable: true,
-        configurable: true,
-      });
+    // ES-05 — ThemeService uses TenantService value for URL construction (never raw hostname)
+    it('ES-05: uses tenant from TenantService signal for URL, not raw hostname', async () => {
+      // TenantService resolved path-traversal hostname to FALLBACK_TENANT ('eudistack')
+      tenantSignal.set('eudistack');
 
       const loadPromise = service.load();
 
-      // resolveTenant('../evil.stg.eudistack.net') → first segment '..' → fails /^[a-z0-9-]+$/ → 'eudistack'
       const req = httpMock.expectOne('/assets/tenants/eudistack/theme.json');
       req.flush('Not Found', { status: 404, statusText: 'Not Found' });
 
       await expect(loadPromise).resolves.toBeUndefined();
-      // Key assertion: the URL contained 'eudistack', not '../evil'
       expect(req.request.url).toBe('/assets/tenants/eudistack/theme.json');
       expect(service.snapshot?.tenantDomain).toBe('EUDISTACK');
     });

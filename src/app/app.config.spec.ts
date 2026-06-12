@@ -1,30 +1,29 @@
 /**
- * Bootstrap integration tests for APP_INITIALIZER (ThemeService.load codepath).
+ * Bootstrap integration tests for APP_INITIALIZER (TenantService.resolve → ThemeService.load).
  *
- * `themeService.load()` is the identical codepath to the factory registered as
- * APP_INITIALIZER in app.config.ts:
+ * The APP_INITIALIZER in app.config.ts chains:
+ *   await tenantService.resolve();
+ *   await themeService.load();
  *
- *   function initializeTheme(themeService: ThemeService): () => Promise<void> {
- *     return () => themeService.load();
- *   }
- *
- * Testing `themeService.load()` directly is therefore equivalent to testing the
- * APP_INITIALIZER factory. The goal of this suite is to verify that Angular's
- * bootstrap phase always settles (never hangs) regardless of the HTTP outcome of
- * theme.json — 404, 500, or success.
+ * Testing `themeService.load()` directly with a pre-configured TenantService mock
+ * covers the ThemeService codepath. The goal is to verify that Angular's bootstrap
+ * phase always settles (never hangs) regardless of the HTTP outcome of theme.json.
  */
+import { WritableSignal, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { TranslateService } from '@ngx-translate/core';
 
 import { ThemeService } from './core/services/theme.service';
+import { TenantService } from './core/services/tenant.service';
 import { Theme } from './core/models/theme.model';
 
-describe('APP_INITIALIZER — ThemeService.load bootstrap safety', () => {
+describe('APP_INITIALIZER — TenantService.resolve + ThemeService.load bootstrap safety', () => {
   let themeService: ThemeService;
   let httpMock: HttpTestingController;
   let translateService: jest.Mocked<TranslateService>;
+  let tenantSignal: WritableSignal<string>;
 
   const mockTheme: Theme = {
     tenantDomain: 'dome',
@@ -51,14 +50,8 @@ describe('APP_INITIALIZER — ThemeService.load bootstrap safety', () => {
     },
   };
 
-  const originalLocation = window.location;
-
   beforeEach(() => {
-    Object.defineProperty(window, 'location', {
-      value: { hostname: 'dome.stg.eudistack.net' },
-      writable: true,
-      configurable: true,
-    });
+    tenantSignal = signal('dome');
 
     translateService = {
       addLangs: jest.fn(),
@@ -73,6 +66,7 @@ describe('APP_INITIALIZER — ThemeService.load bootstrap safety', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: TranslateService, useValue: translateService },
+        { provide: TenantService, useValue: { tenant: tenantSignal } },
       ],
     });
 
@@ -82,11 +76,6 @@ describe('APP_INITIALIZER — ThemeService.load bootstrap safety', () => {
 
   afterEach(() => {
     httpMock.verify();
-    Object.defineProperty(window, 'location', {
-      value: originalLocation,
-      writable: true,
-      configurable: true,
-    });
   });
 
   it('should resolve when theme.json returns 404', async () => {
@@ -109,7 +98,7 @@ describe('APP_INITIALIZER — ThemeService.load bootstrap safety', () => {
     expect(themeService.snapshot?.tenantDomain).toBe('EUDISTACK');
   });
 
-  it('should resolve with per-tenant URL for known hostname', async () => {
+  it('should resolve with per-tenant URL for known tenant', async () => {
     const loadPromise = themeService.load();
 
     const req = httpMock.expectOne('/assets/tenants/dome/theme.json');

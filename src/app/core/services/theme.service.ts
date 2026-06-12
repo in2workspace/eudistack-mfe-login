@@ -4,7 +4,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { BehaviorSubject, Observable, Subscription, firstValueFrom } from 'rxjs';
 import { timeout } from 'rxjs/operators';
 import { Theme } from '../models/theme.model';
-import { resolveTenant } from '../constants/tenants.constants';
+import { TenantService } from './tenant.service';
 
 /**
  * Built-in EUDIStack fallback theme applied when the per-tenant theme.json
@@ -92,11 +92,12 @@ export class ThemeService {
 
   constructor(
     private http: HttpClient,
-    private translate: TranslateService
+    private translate: TranslateService,
+    private tenantService: TenantService
   ) {}
 
   async load(): Promise<void> {
-    const tenant = resolveTenant(window.location.hostname);
+    const tenant = this.tenantService.tenant();
     const assetsBase = `/assets/tenants/${tenant}`;
     try {
       const theme = await firstValueFrom(
