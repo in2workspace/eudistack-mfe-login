@@ -1,7 +1,7 @@
 import { Component, Input } from '@angular/core';
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
-import { By } from '@angular/platform-browser';
+import { By, DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { BehaviorSubject, NEVER, Observable } from 'rxjs';
 import { TranslateModule } from '@ngx-translate/core';
 import { QRCodeComponent } from 'angularx-qrcode';
@@ -565,5 +565,62 @@ describe('LoginComponent', () => {
       tick(3000);
       expect(component.remainingSeconds).toBe(secondsAtDestroy);
     }));
+  });
+
+  // --- Embedded header conditional render (EUDISTACK-605 AC-01 / AC-02) ---
+
+  describe('embedded header conditional render (EUDISTACK-605)', () => {
+    let localTheme$: BehaviorSubject<Theme | null>;
+    let localFixture: ComponentFixture<LoginComponent>;
+
+    function buildTestBed(sanitizeEmbedHtml: jest.Mock) {
+      localTheme$ = new BehaviorSubject<Theme | null>(baseTheme);
+      TestBed.configureTestingModule({
+        imports: [LoginComponent, TranslateModule.forRoot()],
+        providers: [
+          {
+            provide: ActivatedRoute,
+            useValue: { snapshot: { queryParamMap: convertToParamMap({}) } }
+          },
+          { provide: SseService, useValue: { connect: jest.fn().mockReturnValue(NEVER) } },
+          {
+            provide: ThemeService,
+            useValue: { observeTheme: () => localTheme$.asObservable(), sanitizeEmbedHtml }
+          }
+        ]
+      }).overrideComponent(LoginComponent, {
+        remove: { imports: [QRCodeComponent] },
+        add: { imports: [MockQRCodeComponent] }
+      });
+    }
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+      localFixture?.destroy();
+    });
+
+    // AC-02 / EC-04 — null → .embedded-header NOT rendered (DOM node fully absent)
+    it('AC-02/EC-04: .embedded-header is absent when sanitizeEmbedHtml returns null', () => {
+      buildTestBed(jest.fn().mockReturnValue(null));
+      localFixture = TestBed.createComponent(LoginComponent);
+      localFixture.detectChanges();
+
+      expect(localFixture.nativeElement.querySelector('.embedded-header')).toBeNull();
+    });
+
+    // AC-01 — SafeHtml → .embedded-header IS rendered
+    it('AC-01: .embedded-header is present when sanitizeEmbedHtml returns a SafeHtml value', () => {
+      const mockSanitize = jest.fn();
+      buildTestBed(mockSanitize);
+
+      const domSanitizer = TestBed.inject(DomSanitizer);
+      const safeHtml: SafeHtml = domSanitizer.bypassSecurityTrustHtml('<nav>Tenant Header</nav>');
+      mockSanitize.mockReturnValue(safeHtml);
+
+      localFixture = TestBed.createComponent(LoginComponent);
+      localFixture.detectChanges();
+
+      expect(localFixture.nativeElement.querySelector('.embedded-header')).not.toBeNull();
+    });
   });
 });
