@@ -1,5 +1,6 @@
 :host {
-  display: block;
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
   background-color: var(--primary-color);
   color: var(--primary-contrast-color);
@@ -29,7 +30,7 @@
 
 .header-logo { display: block; max-width: 150px; max-height: 65px; width: auto; cursor: pointer; }
 
-.page { min-height: calc(100vh - 105px); }
+.page { flex: 1; }
 
 .container {
   display: flex;
