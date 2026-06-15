@@ -24,9 +24,12 @@ describe('ErrorComponent', () => {
     content: {
       links: [{ label: 'Help', url: 'https://help.example.com' }],
       footer: null,
+      headerEmbedCode: null,
+      footerEmbedCode: null,
       onboardingUrl: null,
       supportUrl: null,
-      walletUrl: null
+      walletUrl: null,
+      knowledgeBaseUrl: null,
     },
     i18n: { defaultLang: 'en', available: ['en'] }
   };

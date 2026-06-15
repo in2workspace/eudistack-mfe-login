@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Added (EUDISTACK-605 — US-002: Header embebido configurable por tenant)
+
+- **Tenant embedded header.** `LoginComponent` now renders an optional tenant-provided HTML block above the branding header. The block is conditionally rendered with `*ngIf` — the DOM node is fully absent (no space reserved) when the tenant has no `headerEmbedCode` configured (FR-03 / FR-04 / AC-01 / AC-02).
+- **DOMPurify sanitization.** `ThemeService.sanitizeEmbedHtml()` applies DOMPurify with a canonical allow-list (`EMBED_ALLOWED_TAGS`, `EMBED_ALLOWED_ATTR`, `EMBED_ALLOWED_URI_REGEXP: /^https:/i`) before passing content to Angular's `DomSanitizer.bypassSecurityTrustHtml()`. Prohibits `<script>`, `<style>`, `javascript:` hrefs, and `on*` event handlers (FR-05 / AC-03 / ES-01–ES-04 / ADR-arch-002 / ADR-arch-003).
+- **Empty-after-sanitize guard.** If DOMPurify strips all content, `sanitizeEmbedHtml` returns `null` and the container is not rendered (EC-01).
+- **Shared allow-list constants.** `embed-sanitizer.constants.ts` materialises the canonical allow-list from `architecture.md §6` as TypeScript constants, ready for reuse by US-003 (footer embed).
+
 ### Added (EUDISTACK-604 — US-001: Carga per-tenant del theme.json desde subdominio)
 
 - **Per-tenant theme resolution.** The Login MFE now resolves the tenant from the request hostname (`resolveTenant(window.location.hostname)`) and loads its branding from `/assets/tenants/{tenant}/theme.json` via `APP_INITIALIZER`, before the first paint. Replaces the previous single hardcoded `assets/theme.json`.

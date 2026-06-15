@@ -1,10 +1,17 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { TranslateService } from '@ngx-translate/core';
 import { BehaviorSubject, Observable, Subscription, firstValueFrom } from 'rxjs';
 import { timeout } from 'rxjs/operators';
+import DOMPurify from 'dompurify';
 import { Theme } from '../models/theme.model';
 import { resolveTenant } from '../constants/tenants.constants';
+import {
+  EMBED_ALLOWED_TAGS,
+  EMBED_ALLOWED_ATTR,
+  EMBED_ALLOWED_URI_REGEXP,
+} from '../constants/embed-sanitizer.constants';
 
 /**
  * Built-in EUDIStack fallback theme applied when the per-tenant theme.json
@@ -92,7 +99,8 @@ export class ThemeService {
 
   constructor(
     private http: HttpClient,
-    private translate: TranslateService
+    private translate: TranslateService,
+    private domSanitizer: DomSanitizer
   ) {}
 
   async load(): Promise<void> {
@@ -131,6 +139,31 @@ export class ThemeService {
     return this.theme$.value;
   }
 
+  /**
+   * Sanitizes tenant-provided embed HTML (header or footer) using DOMPurify with
+   * the canonical allow-list from architecture.md §6.
+   *
+   * Returns null when: input is falsy, or all content is stripped by DOMPurify
+   * (EC-01 — only prohibited tags → empty result treated as absent).
+   *
+   * The returned SafeHtml is safe for `[innerHTML]` binding (ADR-arch-003):
+   * DOMPurify cleans first; bypassSecurityTrustHtml wraps the clean result only.
+   */
+  sanitizeEmbedHtml(raw: string | null | undefined): SafeHtml | null {
+    if (!raw) return null;
+    const clean = DOMPurify.sanitize(raw, {
+      ALLOWED_TAGS: EMBED_ALLOWED_TAGS,
+      ALLOWED_ATTR: EMBED_ALLOWED_ATTR,
+      ALLOWED_URI_REGEXP: EMBED_ALLOWED_URI_REGEXP,
+    });
+    if (!clean.trim()) return null;
+    const theme = this.theme$.value;
+    const resolved = clean
+      .replace(/\{logoUrl\}/g, theme?.branding?.logoUrl ?? '')
+      .replace(/\{logoDarkUrl\}/g, theme?.branding?.logoDarkUrl ?? theme?.branding?.logoUrl ?? '');
+    return this.domSanitizer.bypassSecurityTrustHtml(resolved);
+  }
+
   get tenantDomain(): string {
     const theme = this.theme$.value;
     if (!theme) {
@@ -151,6 +184,7 @@ export class ThemeService {
     };
     if (theme.branding) {
       theme.branding.logoUrl = rewrite(theme.branding.logoUrl) as string;
+      theme.branding.logoDarkUrl = rewrite(theme.branding.logoDarkUrl);
       theme.branding.faviconUrl = rewrite(theme.branding.faviconUrl) as string;
     }
   }

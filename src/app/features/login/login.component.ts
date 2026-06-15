@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
+import { SafeHtml } from '@angular/platform-browser';
 import { QRCodeComponent } from 'angularx-qrcode';
 import { TranslateModule } from '@ngx-translate/core';
 import { Subscription, timer } from 'rxjs';
@@ -24,6 +25,7 @@ export class LoginComponent implements OnInit, OnDestroy {
   state = '';
   homeUri = '';
   theme: Theme | null = null;
+  headerHtml: SafeHtml | null = null;
   timedOut = false;
   errorMessage = '';
   sameDevice = false;
@@ -49,7 +51,10 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.state = this.route.snapshot.queryParamMap.get('state') ?? '';
     this.homeUri = this.route.snapshot.queryParamMap.get('homeUri') ?? '';
 
-    this.themeSub = this.themeService.observeTheme().subscribe(t => this.theme = t);
+    this.themeSub = this.themeService.observeTheme().subscribe(t => {
+      this.theme = t;
+      this.headerHtml = this.themeService.sanitizeEmbedHtml(t?.content?.headerEmbedCode);
+    });
 
     if (this.state) {
       this.waitingForVerification = true;

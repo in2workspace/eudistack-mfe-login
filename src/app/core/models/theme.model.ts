@@ -7,6 +7,7 @@ export interface Theme {
     secondaryColor: string;
     secondaryContrastColor: string;
     logoUrl: string | null;
+    logoDarkUrl?: string | null;
     faviconUrl: string | null;
   };
   content: {
