@@ -164,6 +164,21 @@ export class ThemeService {
     return this.domSanitizer.bypassSecurityTrustHtml(resolved);
   }
 
+  /**
+   * Returns the sanitized footer embed HTML for the current theme snapshot.
+   *
+   * Delegates to `sanitizeEmbedHtml()` — same DOMPurify + allow-list + bypass
+   * pipeline used by the header embed (ADR-arch-002 / ADR-arch-003 / AD-1).
+   * Returns null when: footerEmbedCode is absent/null, or all content is stripped
+   * by DOMPurify (EC-01), or the field is undefined (EC-04).
+   *
+   * Note: for reactive contexts (ngOnInit subscription), call sanitizeEmbedHtml()
+   * directly with the emitted theme value. This getter is for snapshot access.
+   */
+  get sanitizedFooter(): SafeHtml | null {
+    return this.sanitizeEmbedHtml(this.theme$.value?.content?.footerEmbedCode);
+  }
+
   get tenantDomain(): string {
     const theme = this.theme$.value;
     if (!theme) {
