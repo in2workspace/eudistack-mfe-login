@@ -6,7 +6,7 @@ import { BehaviorSubject, Observable, Subscription, firstValueFrom } from 'rxjs'
 import { timeout } from 'rxjs/operators';
 import DOMPurify from 'dompurify';
 import { Theme } from '../models/theme.model';
-import { resolveTenant } from '../constants/tenants.constants';
+import { TenantService } from './tenant.service';
 import {
   EMBED_ALLOWED_TAGS,
   EMBED_ALLOWED_ATTR,
@@ -100,11 +100,12 @@ export class ThemeService {
   constructor(
     private http: HttpClient,
     private translate: TranslateService,
+    private tenantService: TenantService,
     private domSanitizer: DomSanitizer
   ) {}
 
   async load(): Promise<void> {
-    const tenant = resolveTenant(window.location.hostname);
+    const tenant = this.tenantService.tenant();
     const assetsBase = `/assets/tenants/${tenant}`;
     try {
       const theme = await firstValueFrom(
