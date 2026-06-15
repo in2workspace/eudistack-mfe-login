@@ -2,7 +2,7 @@
 <div *ngIf="headerHtml" class="embedded-header" [innerHTML]="headerHtml"></div>
 
 <!-- Header with logo -->
-<header class="header" *ngIf="theme?.branding?.logoUrl">
+<header class="header" *ngIf="theme?.branding?.logoUrl && !headerHtml">
   <img [src]="theme!.branding.logoUrl"
        [attr.alt]="theme!.branding.name ? theme!.branding.name + ' logo' : 'Logo'"
        [attr.aria-label]="'login.home' | translate"

@@ -157,7 +157,11 @@ export class ThemeService {
       ALLOWED_URI_REGEXP: EMBED_ALLOWED_URI_REGEXP,
     });
     if (!clean.trim()) return null;
-    return this.domSanitizer.bypassSecurityTrustHtml(clean);
+    const theme = this.theme$.value;
+    const resolved = clean
+      .replace(/\{logoUrl\}/g, theme?.branding?.logoUrl ?? '')
+      .replace(/\{logoDarkUrl\}/g, theme?.branding?.logoDarkUrl ?? theme?.branding?.logoUrl ?? '');
+    return this.domSanitizer.bypassSecurityTrustHtml(resolved);
   }
 
   get tenantDomain(): string {
@@ -180,6 +184,7 @@ export class ThemeService {
     };
     if (theme.branding) {
       theme.branding.logoUrl = rewrite(theme.branding.logoUrl) as string;
+      theme.branding.logoDarkUrl = rewrite(theme.branding.logoDarkUrl);
       theme.branding.faviconUrl = rewrite(theme.branding.faviconUrl) as string;
     }
   }

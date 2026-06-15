@@ -622,5 +622,34 @@ describe('LoginComponent', () => {
 
       expect(localFixture.nativeElement.querySelector('.embedded-header')).not.toBeNull();
     });
+
+    // AC-02 — when embedded header present, branding .header is hidden (no double logo)
+    it('AC-02: branding .header is absent when embedded header is rendered', () => {
+      const mockSanitize = jest.fn();
+      buildTestBed(mockSanitize);
+
+      const domSanitizer = TestBed.inject(DomSanitizer);
+      const safeHtml: SafeHtml = domSanitizer.bypassSecurityTrustHtml('<nav>Tenant Header</nav>');
+      mockSanitize.mockReturnValue(safeHtml);
+
+      localTheme$.next({ ...baseTheme, branding: { ...baseTheme.branding, logoUrl: '/logo.png' } });
+      localFixture = TestBed.createComponent(LoginComponent);
+      localFixture.detectChanges();
+
+      expect(localFixture.nativeElement.querySelector('.embedded-header')).not.toBeNull();
+      expect(localFixture.nativeElement.querySelector('header.header')).toBeNull();
+    });
+
+    // AC-02 — when no embedded header, branding .header IS shown
+    it('AC-02: branding .header is present when there is no embedded header', () => {
+      buildTestBed(jest.fn().mockReturnValue(null));
+
+      localTheme$.next({ ...baseTheme, branding: { ...baseTheme.branding, logoUrl: '/logo.png' } });
+      localFixture = TestBed.createComponent(LoginComponent);
+      localFixture.detectChanges();
+
+      expect(localFixture.nativeElement.querySelector('.embedded-header')).toBeNull();
+      expect(localFixture.nativeElement.querySelector('header.header')).not.toBeNull();
+    });
   });
 });

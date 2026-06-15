@@ -607,5 +607,26 @@ describe('ThemeService', () => {
     it('ES-04: strips <style> injection — result is null when no allowed content remains', () => {
       expect(service.sanitizeEmbedHtml('<style>body { display: none !important; }</style>')).toBeNull();
     });
+
+    // SVG — inline SVG with allowed tags passes through (proves SVG allow-list extension works)
+    it('SVG-01: preserves inline SVG with allowed tags and attributes', () => {
+      const input = '<svg width="100%" height="104" viewBox="0 0 1440 104" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="1440" height="104" fill="#0B1529" fill-opacity="0.75"/><path d="M0 0H1440V104H0Z" fill="white"/></svg>';
+      const result = service.sanitizeEmbedHtml(input);
+      expect(result).not.toBeNull();
+      const html = (result as any).changingThisBreaksApplicationSecurity as string;
+      expect(html).toContain('<svg');
+      expect(html).toContain('<rect');
+      expect(html).toContain('<path');
+    });
+
+    // SVG — <script> inside SVG is stripped, outer SVG structure retained
+    it('SVG-02: strips <script> injected inside SVG while retaining SVG structure', () => {
+      const input = '<svg width="100%" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><rect width="100" height="100" fill="red"/></svg>';
+      const result = service.sanitizeEmbedHtml(input);
+      expect(result).not.toBeNull();
+      const html = (result as any).changingThisBreaksApplicationSecurity as string;
+      expect(html).not.toContain('<script');
+      expect(html).toContain('<rect');
+    });
   });
 });
