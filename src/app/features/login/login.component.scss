@@ -17,9 +17,11 @@
 }
 
 .embedded-footer {
-  width: 100%;
+  max-width: 80%;
+  margin: 0 auto;
   overflow: hidden;
   box-sizing: border-box;
+  padding: 0 20px;
 }
 
 .header {
