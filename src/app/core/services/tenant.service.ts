@@ -1,4 +1,4 @@
-import { Injectable, Signal, signal } from '@angular/core';
+import { inject, Injectable, Signal, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { timeout } from 'rxjs/operators';
@@ -10,9 +10,9 @@ export class TenantService {
   private static readonly ENV_SUFFIXES = ['-stg', '-dev', '-pre'] as const;
 
   private readonly _tenant = signal<string>(FALLBACK_TENANT);
-  readonly tenant: Signal<string> = this._tenant.asReadonly();
+  public readonly tenant: Signal<string> = this._tenant.asReadonly();
+  private readonly http = inject(HttpClient);
 
-  constructor(private readonly http: HttpClient) {}
 
   async resolve(): Promise<void> {
     const fromHostname = this.fromHostname(window.location.hostname);
@@ -24,7 +24,7 @@ export class TenantService {
     try {
       const map = await firstValueFrom(
         this.http
-          .get<Record<string, string>>('/assets/custom-domain.json')
+          .get<Record<string, string>>('/assets/tenants/custom-domain.json')
           .pipe(timeout(800))
       );
       const slug = map?.[window.location.hostname];
