@@ -1,18 +1,23 @@
 # Changelog
 
-## [3.2.6] - 2026-06-12
+[Unreleased]
 
-### Added
+### Added (2026-06-15)
 
 - **`TenantService` with three-step resolution.** New `TenantService` resolves the active tenant before bootstrap in three steps: (1) extract slug from the first hostname label, strip env suffix (`-stg`/`-dev`/`-pre`), validate against `^[a-z0-9-]+$` and `KNOWN_TENANTS`; (2) if unresolved, fetch `/assets/custom-domain.json` and look up `window.location.hostname` in the map, applying the same validation; (3) fall back to `FALLBACK_TENANT` (`eudistack`). Enables custom-domain deployments (e.g. `wallets.company.com`) to be mapped to a known tenant without relying on subdomain structure.
 - **`APP_INITIALIZER` ordering guarantee.** The initialiser in `app.config.ts` now chains `tenantService.resolve()` → `themeService.load()` sequentially in a single factory, ensuring the tenant signal is settled before `ThemeService` reads it.
 
-### Changed
+### Changed (2026-06-15)
 
 - **`tenants.constants.ts` simplified to data-only.** All resolution logic (`resolveTenant`, `stripEnvSuffix`, `TENANT_SLUG_RE`, `ENV_SUFFIXES`) moved into `TenantService` as private members. The file now exports only `KNOWN_TENANTS` and `FALLBACK_TENANT`.
 - **`ThemeService` decoupled from `window.location`.** `load()` reads `this.tenantService.tenant()` (signal) instead of calling `resolveTenant(window.location.hostname)` directly.
 
-## [3.2.5] - 2026-06-12
+### Added (EUDISTACK-605 — US-002: Header embebido configurable por tenant)
+
+- **Tenant embedded header.** `LoginComponent` now renders an optional tenant-provided HTML block above the branding header. The block is conditionally rendered with `*ngIf` — the DOM node is fully absent (no space reserved) when the tenant has no `headerEmbedCode` configured (FR-03 / FR-04 / AC-01 / AC-02).
+- **DOMPurify sanitization.** `ThemeService.sanitizeEmbedHtml()` applies DOMPurify with a canonical allow-list (`EMBED_ALLOWED_TAGS`, `EMBED_ALLOWED_ATTR`, `EMBED_ALLOWED_URI_REGEXP: /^https:/i`) before passing content to Angular's `DomSanitizer.bypassSecurityTrustHtml()`. Prohibits `<script>`, `<style>`, `javascript:` hrefs, and `on*` event handlers (FR-05 / AC-03 / ES-01–ES-04 / ADR-arch-002 / ADR-arch-003).
+- **Empty-after-sanitize guard.** If DOMPurify strips all content, `sanitizeEmbedHtml` returns `null` and the container is not rendered (EC-01).
+- **Shared allow-list constants.** `embed-sanitizer.constants.ts` materialises the canonical allow-list from `architecture.md §6` as TypeScript constants, ready for reuse by US-003 (footer embed).
 
 ### Added (EUDISTACK-604 — US-001: Carga per-tenant del theme.json desde subdominio)
 
