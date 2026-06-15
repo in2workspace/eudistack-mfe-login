@@ -2,6 +2,8 @@
 
 [Unreleased]
 
+## [3.2.6] - 2026-06-15
+
 ### Added (2026-06-15)
 
 - **`TenantService` with three-step resolution.** New `TenantService` resolves the active tenant before bootstrap in three steps: (1) extract slug from the first hostname label, strip env suffix (`-stg`/`-dev`/`-pre`), validate against `^[a-z0-9-]+$` and `KNOWN_TENANTS`; (2) if unresolved, fetch `/assets/custom-domain.json` and look up `window.location.hostname` in the map, applying the same validation; (3) fall back to `FALLBACK_TENANT` (`eudistack`). Enables custom-domain deployments (e.g. `wallets.company.com`) to be mapped to a known tenant without relying on subdomain structure.
