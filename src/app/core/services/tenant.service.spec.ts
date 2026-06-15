@@ -5,7 +5,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { TenantService } from './tenant.service';
 import { FALLBACK_TENANT } from '../constants/tenants.constants';
 
-const CUSTOM_DOMAIN_URL = '/assets/custom-domain.json';
+const CUSTOM_DOMAIN_URL = '/assets/tenants/custom-domain.json';
 
 describe('TenantService', () => {
   let service: TenantService;
