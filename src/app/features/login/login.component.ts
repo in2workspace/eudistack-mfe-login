@@ -116,12 +116,6 @@ export class LoginComponent implements OnInit, OnDestroy {
     }
   }
 
-  navigateOnboarding(): void {
-    if (this.theme?.content?.onboardingUrl) {
-      window.location.href = this.theme.content.onboardingUrl;
-    }
-  }
-
   openWallet(): void {
     if (!this.walletRedirectUrl) return;
     const opened = window.open(this.walletRedirectUrl, '_blank');

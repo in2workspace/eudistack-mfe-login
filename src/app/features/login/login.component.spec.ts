@@ -401,15 +401,6 @@ describe('LoginComponent', () => {
     });
   });
 
-  describe('navigateOnboarding', () => {
-    it('should not throw when onboardingUrl is null', () => {
-      createComponent({});
-      fixture.detectChanges();
-
-      expect(() => component.navigateOnboarding()).not.toThrow();
-    });
-  });
-
   // --- Countdown ---
 
   describe('countdown', () => {
