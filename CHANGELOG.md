@@ -1,6 +1,18 @@
 # Changelog
 
-## [Unreleased]
+[Unreleased]
+
+## [3.2.6] - 2026-06-15
+
+### Added (2026-06-15)
+
+- **`TenantService` with three-step resolution.** New `TenantService` resolves the active tenant before bootstrap in three steps: (1) extract slug from the first hostname label, strip env suffix (`-stg`/`-dev`/`-pre`), validate against `^[a-z0-9-]+$` and `KNOWN_TENANTS`; (2) if unresolved, fetch `/assets/custom-domain.json` and look up `window.location.hostname` in the map, applying the same validation; (3) fall back to `FALLBACK_TENANT` (`eudistack`). Enables custom-domain deployments (e.g. `wallets.company.com`) to be mapped to a known tenant without relying on subdomain structure.
+- **`APP_INITIALIZER` ordering guarantee.** The initialiser in `app.config.ts` now chains `tenantService.resolve()` → `themeService.load()` sequentially in a single factory, ensuring the tenant signal is settled before `ThemeService` reads it.
+
+### Changed (2026-06-15)
+
+- **`tenants.constants.ts` simplified to data-only.** All resolution logic (`resolveTenant`, `stripEnvSuffix`, `TENANT_SLUG_RE`, `ENV_SUFFIXES`) moved into `TenantService` as private members. The file now exports only `KNOWN_TENANTS` and `FALLBACK_TENANT`.
+- **`ThemeService` decoupled from `window.location`.** `load()` reads `this.tenantService.tenant()` (signal) instead of calling `resolveTenant(window.location.hostname)` directly.
 
 ## [3.3.0] - 2026-06-16
 
