@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [3.3.0] - 2026-06-16
+
 ### Added (EUDISTACK-606 — US-003: Footer embebido configurable por tenant)
 
 - **Tenant embedded footer.** `LoginComponent` now renders an optional tenant-provided HTML block below the page content. The block is conditionally rendered with `*ngIf` — the DOM node is fully absent (no space reserved) when the tenant has no `footerEmbedCode` configured (FR-06 / FR-07 / AC-01 / AC-02).
