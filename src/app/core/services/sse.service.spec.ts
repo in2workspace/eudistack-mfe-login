@@ -1,7 +1,15 @@
+import { TestBed } from '@angular/core/testing';
 import { SseService } from './sse.service';
+import { TenantService } from './tenant.service';
+import { environment } from '../../../environments/environment';
 
 describe('SseService', () => {
   let service: SseService;
+
+  let tenantServiceMock: {
+    isCanonical: jest.Mock<boolean, []>;
+  };
+
   let mockEventSource: {
     addEventListener: jest.Mock;
     onerror: ((event: Event) => void) | null;
@@ -9,7 +17,9 @@ describe('SseService', () => {
   };
 
   beforeEach(() => {
-    service = new SseService();
+    tenantServiceMock = {
+      isCanonical: jest.fn().mockReturnValue(true)
+    };
 
     mockEventSource = {
       addEventListener: jest.fn(),
@@ -17,19 +27,45 @@ describe('SseService', () => {
       close: jest.fn()
     };
 
-    (globalThis as any).EventSource = jest.fn().mockImplementation(() => mockEventSource);
+    (globalThis as any).EventSource = jest
+      .fn()
+      .mockImplementation(() => mockEventSource);
+
+    TestBed.configureTestingModule({
+      providers: [
+        SseService,
+        {
+          provide: TenantService,
+          useValue: tenantServiceMock
+        }
+      ]
+    });
+
+    service = TestBed.inject(SseService);
   });
 
   afterEach(() => {
     delete (globalThis as any).EventSource;
+    jest.clearAllMocks();
+    TestBed.resetTestingModule();
   });
 
   describe('connect', () => {
-    it('should create EventSource with correct URL', () => {
+    it('should create EventSource with correct URL when tenant is canonical', () => {
       service.connect('test-state').subscribe();
 
       expect(globalThis.EventSource).toHaveBeenCalledWith(
-        'http://localhost:8082/api/login/events?state=test-state'
+        `${environment.api_base_url}/api/login/events?state=test-state`
+      );
+    });
+
+    it('should create EventSource with relative URL when tenant is not canonical', () => {
+      tenantServiceMock.isCanonical.mockReturnValue(false);
+
+      service.connect('test-state').subscribe();
+
+      expect(globalThis.EventSource).toHaveBeenCalledWith(
+        '/api/login/events?state=test-state'
       );
     });
 
@@ -37,7 +73,7 @@ describe('SseService', () => {
       service.connect('state with spaces&special=chars').subscribe();
 
       expect(globalThis.EventSource).toHaveBeenCalledWith(
-        'http://localhost:8082/api/login/events?state=state%20with%20spaces%26special%3Dchars'
+        `${environment.api_base_url}/api/login/events?state=state%20with%20spaces%26special%3Dchars`
       );
     });
 
@@ -50,17 +86,22 @@ describe('SseService', () => {
       );
     });
 
-    it('should emit redirect URL and complete on redirect event', () => {
+    it('should emit redirect URL, complete and close on redirect event', () => {
       const values: string[] = [];
       let completed = false;
 
       service.connect('s1').subscribe({
-        next: v => values.push(v),
-        complete: () => (completed = true)
+        next: value => values.push(value),
+        complete: () => {
+          completed = true;
+        }
       });
 
-      const handler = mockEventSource.addEventListener.mock.calls[0][1];
-      handler({ data: 'https://client.example.com/callback?code=abc' } as MessageEvent);
+      const redirectHandler = mockEventSource.addEventListener.mock.calls[0][1];
+
+      redirectHandler({
+        data: 'https://client.example.com/callback?code=abc'
+      } as MessageEvent);
 
       expect(values).toEqual(['https://client.example.com/callback?code=abc']);
       expect(completed).toBe(true);
@@ -71,20 +112,22 @@ describe('SseService', () => {
       let receivedError: Error | null = null;
 
       service.connect('s1').subscribe({
-        error: err => (receivedError = err)
+        error: error => {
+          receivedError = error;
+        }
       });
 
-      mockEventSource.onerror!({} as Event);
+      mockEventSource.onerror?.({} as Event);
 
-      expect(receivedError).toBeTruthy();
-      expect(receivedError!.message).toBe('SSE connection failed');
+      expect(receivedError).toBeInstanceOf(Error);
+      expect(receivedError?.message).toBe('SSE connection failed');
       expect(mockEventSource.close).toHaveBeenCalled();
     });
 
     it('should close EventSource on unsubscribe', () => {
-      const sub = service.connect('s1').subscribe();
+      const subscription = service.connect('s1').subscribe();
 
-      sub.unsubscribe();
+      subscription.unsubscribe();
 
       expect(mockEventSource.close).toHaveBeenCalled();
     });

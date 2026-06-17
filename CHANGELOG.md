@@ -2,6 +2,9 @@
 
 [Unreleased]
 
+## [3.2.7] - 2026-06-17
+- **SSE URL resolution** is resolved with the appropiate canonical or non-canonical URL.
+
 ## [3.2.6] - 2026-06-15
 
 ### Added (2026-06-15)

@@ -1,12 +1,16 @@
-import { Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { TenantService } from './tenant.service';
 
 @Injectable({ providedIn: 'root' })
 export class SseService {
+  private readonly tenantService = inject(TenantService);
+
   connect(state: string): Observable<string> {
     return new Observable<string>(subscriber => {
-      const url = `${environment.api_base_url}/api/login/events?state=${encodeURIComponent(state)}`;
+      const prefix = this.tenantService.isCanonical() ? environment.api_base_url : '';
+      const url = `${prefix}/api/login/events?state=${encodeURIComponent(state)}`;
       const eventSource = new EventSource(url);
 
       eventSource.addEventListener('redirect', (event: MessageEvent) => {
