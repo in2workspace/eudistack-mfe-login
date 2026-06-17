@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { timeout } from 'rxjs/operators';
 import { FALLBACK_TENANT, KNOWN_TENANTS } from '../constants/tenants.constants';
+import { CustomDomainConfig } from '../models/custom-domain.model';
 
 @Injectable({ providedIn: 'root' })
 export class TenantService {
@@ -25,12 +26,12 @@ export class TenantService {
     }
 
     try {
-      const map = await firstValueFrom(
+      const config = await firstValueFrom(
         this.http
-          .get<Record<string, string>>('/assets/tenants/custom-domain.json')
+          .get<CustomDomainConfig>('/assets/tenants/custom-domain.json')
           .pipe(timeout(800))
       );
-      const slug = map?.[window.location.hostname];
+      const slug = config?.domains?.[window.location.hostname]?.tenantId;
       if (slug && this.isValid(slug)) {
         this._tenant.set(slug);
         this._isCanonical.set(false);
