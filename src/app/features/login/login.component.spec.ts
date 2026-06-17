@@ -401,15 +401,6 @@ describe('LoginComponent', () => {
     });
   });
 
-  describe('navigateOnboarding', () => {
-    it('should not throw when onboardingUrl is null', () => {
-      createComponent({});
-      fixture.detectChanges();
-
-      expect(() => component.navigateOnboarding()).not.toThrow();
-    });
-  });
-
   // --- Countdown ---
 
   describe('countdown', () => {
@@ -565,6 +556,114 @@ describe('LoginComponent', () => {
       tick(3000);
       expect(component.remainingSeconds).toBe(secondsAtDestroy);
     }));
+  });
+
+  // --- Embedded footer conditional render (EUDISTACK-606 AC-01 / AC-02 / EC-01 / EC-04) ---
+
+  describe('embedded footer conditional render (EUDISTACK-606)', () => {
+    let localTheme$: BehaviorSubject<Theme | null>;
+    let localFixture: ComponentFixture<LoginComponent>;
+
+    function buildFooterTestBed(sanitizeEmbedHtmlImpl: jest.Mock) {
+      localTheme$ = new BehaviorSubject<Theme | null>(baseTheme);
+      TestBed.configureTestingModule({
+        imports: [LoginComponent, TranslateModule.forRoot()],
+        providers: [
+          {
+            provide: ActivatedRoute,
+            useValue: { snapshot: { queryParamMap: convertToParamMap({}) } }
+          },
+          { provide: SseService, useValue: { connect: jest.fn().mockReturnValue(NEVER) } },
+          {
+            provide: ThemeService,
+            useValue: { observeTheme: () => localTheme$.asObservable(), sanitizeEmbedHtml: sanitizeEmbedHtmlImpl }
+          }
+        ]
+      }).overrideComponent(LoginComponent, {
+        remove: { imports: [QRCodeComponent] },
+        add: { imports: [MockQRCodeComponent] }
+      });
+    }
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+      localFixture?.destroy();
+    });
+
+    // AC-02 / EC-04 — null → .embedded-footer NOT rendered (DOM node fully absent)
+    it('AC-02/EC-04: .embedded-footer is absent when footerHtml is null', () => {
+      buildFooterTestBed(jest.fn().mockReturnValue(null));
+      localFixture = TestBed.createComponent(LoginComponent);
+      localFixture.detectChanges();
+
+      expect(localFixture.nativeElement.querySelector('.embedded-footer')).toBeNull();
+    });
+
+    // AC-01 — SafeHtml → .embedded-footer IS rendered
+    it('AC-01: .embedded-footer is present when footerHtml is a SafeHtml value', () => {
+      const mockSanitize = jest.fn();
+      buildFooterTestBed(mockSanitize);
+
+      const domSanitizer = TestBed.inject(DomSanitizer);
+      const safeHtml: SafeHtml = domSanitizer.bypassSecurityTrustHtml('<footer>Tenant Footer</footer>');
+      // sanitizeEmbedHtml is called twice: once for headerEmbedCode, once for footerEmbedCode
+      mockSanitize.mockReturnValueOnce(null).mockReturnValueOnce(safeHtml);
+
+      localFixture = TestBed.createComponent(LoginComponent);
+      localFixture.detectChanges();
+
+      expect(localFixture.nativeElement.querySelector('.embedded-footer')).not.toBeNull();
+    });
+
+    // AC-02 — *ngIf removes node from DOM (not just hidden) when footerHtml transitions to null
+    it('AC-02: .embedded-footer node is removed from DOM when footerHtml becomes null', () => {
+      const mockSanitize = jest.fn();
+      buildFooterTestBed(mockSanitize);
+
+      const domSanitizer = TestBed.inject(DomSanitizer);
+      const safeHtml: SafeHtml = domSanitizer.bypassSecurityTrustHtml('<footer>Footer</footer>');
+      // First subscription: header=null, footer=SafeHtml
+      mockSanitize.mockReturnValueOnce(null).mockReturnValueOnce(safeHtml);
+
+      localFixture = TestBed.createComponent(LoginComponent);
+      localFixture.detectChanges();
+      expect(localFixture.nativeElement.querySelector('.embedded-footer')).not.toBeNull();
+
+      // Theme update: footer embed code removed → both calls return null
+      mockSanitize.mockReturnValue(null);
+      localTheme$.next({ ...baseTheme, content: { ...baseTheme.content, footerEmbedCode: null } });
+      localFixture.detectChanges();
+
+      // Node must be fully absent — not just hidden (AC-02 / FR-07)
+      expect(localFixture.nativeElement.querySelector('.embedded-footer')).toBeNull();
+    });
+
+    // EC-01 — empty after sanitize → null → .embedded-footer NOT rendered
+    it('EC-01: .embedded-footer is absent when sanitization strips all footer content (returns null)', () => {
+      buildFooterTestBed(jest.fn().mockReturnValue(null));
+      localTheme$.next({ ...baseTheme, content: { ...baseTheme.content, footerEmbedCode: '<script>evil()</script>' } });
+      localFixture = TestBed.createComponent(LoginComponent);
+      localFixture.detectChanges();
+
+      expect(localFixture.nativeElement.querySelector('.embedded-footer')).toBeNull();
+    });
+
+    // Coexistence — header + footer both present simultaneously
+    it('both .embedded-header and .embedded-footer are present when both have SafeHtml values', () => {
+      const mockSanitize = jest.fn();
+      buildFooterTestBed(mockSanitize);
+
+      const domSanitizer = TestBed.inject(DomSanitizer);
+      const headerHtml: SafeHtml = domSanitizer.bypassSecurityTrustHtml('<nav>Header</nav>');
+      const footerHtml: SafeHtml = domSanitizer.bypassSecurityTrustHtml('<footer>Footer</footer>');
+      mockSanitize.mockReturnValueOnce(headerHtml).mockReturnValueOnce(footerHtml);
+
+      localFixture = TestBed.createComponent(LoginComponent);
+      localFixture.detectChanges();
+
+      expect(localFixture.nativeElement.querySelector('.embedded-header')).not.toBeNull();
+      expect(localFixture.nativeElement.querySelector('.embedded-footer')).not.toBeNull();
+    });
   });
 
   // --- Embedded header conditional render (EUDISTACK-605 AC-01 / AC-02) ---

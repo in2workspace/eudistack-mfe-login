@@ -17,6 +17,20 @@
 - **`tenants.constants.ts` simplified to data-only.** All resolution logic (`resolveTenant`, `stripEnvSuffix`, `TENANT_SLUG_RE`, `ENV_SUFFIXES`) moved into `TenantService` as private members. The file now exports only `KNOWN_TENANTS` and `FALLBACK_TENANT`.
 - **`ThemeService` decoupled from `window.location`.** `load()` reads `this.tenantService.tenant()` (signal) instead of calling `resolveTenant(window.location.hostname)` directly.
 
+## [3.3.0] - 2026-06-16
+
+### Added (EUDISTACK-606 — US-003: Footer embebido configurable por tenant)
+
+- **Tenant embedded footer.** `LoginComponent` now renders an optional tenant-provided HTML block below the page content. The block is conditionally rendered with `*ngIf` — the DOM node is fully absent (no space reserved) when the tenant has no `footerEmbedCode` configured (FR-06 / FR-07 / AC-01 / AC-02).
+- **Footer sanitization via shared pipeline.** `ThemeService.sanitizedFooter` getter delegates to the existing `sanitizeEmbedHtml()` method, applying DOMPurify with the canonical allow-list (`EMBED_ALLOWED_TAGS`, `EMBED_ALLOWED_ATTR`, `EMBED_ALLOWED_URI_REGEXP`) before `DomSanitizer.bypassSecurityTrustHtml()`. Prohibits `<script>`, `<style>`, `javascript:` hrefs, and `on*` event handlers (FR-08 / AC-03 / ES-01–ES-04 / ADR-arch-002 / ADR-arch-003 / AD-1).
+- **Empty-after-sanitize guard.** If DOMPurify strips all footer content, `sanitizeEmbedHtml` returns `null` and the footer container is not rendered (EC-01).
+- **DOME seed footerEmbedCode.** `tenants/dome/theme.json` in `eudistack-platform-assets` updated with registration CTAs (customer + provider) as `footerEmbedCode` (in `eudistack-platform-assets`).
+
+### Removed (EUDISTACK-606 — US-003: Footer embebido configurable por tenant)
+
+- **Deprecated `registration-card` block.** The `*ngIf="theme.content?.onboardingUrl"` registration card has been removed from `LoginComponent` template and SCSS — superseded by the configurable `footerEmbedCode` embed (ADR-arch-005).
+- **Deprecated `onboardingUrl` field.** Removed from all seed `theme.json` files (`dome`, `altia`, `cgcom`, `eudistack`, `kpmg`) in `eudistack-platform-assets` (ADR-arch-005).
+
 ### Added (EUDISTACK-605 — US-002: Header embebido configurable por tenant)
 
 - **Tenant embedded header.** `LoginComponent` now renders an optional tenant-provided HTML block above the branding header. The block is conditionally rendered with `*ngIf` — the DOM node is fully absent (no space reserved) when the tenant has no `headerEmbedCode` configured (FR-03 / FR-04 / AC-01 / AC-02).

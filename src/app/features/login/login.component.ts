@@ -26,6 +26,7 @@ export class LoginComponent implements OnInit, OnDestroy {
   homeUri = '';
   theme: Theme | null = null;
   headerHtml: SafeHtml | null = null;
+  footerHtml: SafeHtml | null = null;
   timedOut = false;
   errorMessage = '';
   sameDevice = false;
@@ -54,6 +55,7 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.themeSub = this.themeService.observeTheme().subscribe(t => {
       this.theme = t;
       this.headerHtml = this.themeService.sanitizeEmbedHtml(t?.content?.headerEmbedCode);
+      this.footerHtml = this.themeService.sanitizeEmbedHtml(t?.content?.footerEmbedCode);
     });
 
     if (this.state) {
@@ -111,12 +113,6 @@ export class LoginComponent implements OnInit, OnDestroy {
   navigateHome(): void {
     if (this.homeUri) {
       window.location.href = this.homeUri;
-    }
-  }
-
-  navigateOnboarding(): void {
-    if (this.theme?.content?.onboardingUrl) {
-      window.location.href = this.theme.content.onboardingUrl;
     }
   }
 
