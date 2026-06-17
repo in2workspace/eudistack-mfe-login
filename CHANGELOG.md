@@ -2,6 +2,9 @@
 
 [Unreleased]
 
+### Changed (2026-06-17)
+- Resolved multiple Critical and High severity vulnerabilities in frontend build dependencies.
+
 ## [3.2.6] - 2026-06-15
 
 ### Added (2026-06-15)
