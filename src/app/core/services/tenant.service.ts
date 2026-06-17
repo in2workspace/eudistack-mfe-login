@@ -10,7 +10,9 @@ export class TenantService {
   private static readonly ENV_SUFFIXES = ['-stg', '-dev', '-pre'] as const;
 
   private readonly _tenant = signal<string>(FALLBACK_TENANT);
+  private readonly _isCanonical = signal<boolean>(true);
   public readonly tenant: Signal<string> = this._tenant.asReadonly();
+  public readonly isCanonical: Signal<boolean> = this._isCanonical.asReadonly();
   private readonly http = inject(HttpClient);
 
 
@@ -18,6 +20,7 @@ export class TenantService {
     const fromHostname = this.fromHostname(window.location.hostname);
     if (fromHostname) {
       this._tenant.set(fromHostname);
+      this._isCanonical.set(true);
       return;
     }
 
@@ -30,6 +33,7 @@ export class TenantService {
       const slug = map?.[window.location.hostname];
       if (slug && this.isValid(slug)) {
         this._tenant.set(slug);
+        this._isCanonical.set(false);
         return;
       }
     } catch {
@@ -37,6 +41,7 @@ export class TenantService {
     }
 
     this._tenant.set(FALLBACK_TENANT);
+    this._isCanonical.set(false);
   }
 
   private fromHostname(hostname: string): string | null {
