@@ -2,7 +2,14 @@
 
 [Unreleased]
 
+## [3.3.1] - 2026-06-18
+
+### Added (2026-06-18)
+
+- **CGCOM tenant support** added to tenants constants. applied CGCOM own branding.
+
 ## [3.2.7] - 2026-06-17
+
 - **SSE URL resolution** is resolved with the appropiate canonical or non-canonical URL.
 
 ## [3.2.6] - 2026-06-15
