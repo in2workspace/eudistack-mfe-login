@@ -95,7 +95,10 @@ describe('TenantService', () => {
     it('resolves tenant from JSON when hostname is not a known tenant', async () => {
       setHostname('wallets.company.com');
       const resolvePromise = service.resolve();
-      httpMock.expectOne(CUSTOM_DOMAIN_URL).flush({ 'wallets.company.com': 'kpmg' });
+      httpMock.expectOne(CUSTOM_DOMAIN_URL).flush({
+        domains: { 'wallets.company.com': { tenantId: 'kpmg', envId: 'stg' } },
+        env: {},
+      });
       await resolvePromise;
       expect(service.tenant()).toBe('kpmg');
     });
@@ -103,7 +106,10 @@ describe('TenantService', () => {
     it('falls back when hostname not in JSON map', async () => {
       setHostname('wallets.company.com');
       const resolvePromise = service.resolve();
-      httpMock.expectOne(CUSTOM_DOMAIN_URL).flush({ 'other.domain.com': 'dome' });
+      httpMock.expectOne(CUSTOM_DOMAIN_URL).flush({
+        domains: { 'other.domain.com': { tenantId: 'dome', envId: 'stg' } },
+        env: {},
+      });
       await resolvePromise;
       expect(service.tenant()).toBe(FALLBACK_TENANT);
     });
@@ -111,7 +117,10 @@ describe('TenantService', () => {
     it('falls back when JSON value fails slug regex', async () => {
       setHostname('wallets.company.com');
       const resolvePromise = service.resolve();
-      httpMock.expectOne(CUSTOM_DOMAIN_URL).flush({ 'wallets.company.com': 'INVALID!' });
+      httpMock.expectOne(CUSTOM_DOMAIN_URL).flush({
+        domains: { 'wallets.company.com': { tenantId: 'INVALID!', envId: 'stg' } },
+        env: {},
+      });
       await resolvePromise;
       expect(service.tenant()).toBe(FALLBACK_TENANT);
     });
@@ -119,7 +128,10 @@ describe('TenantService', () => {
     it('falls back when JSON value is not in KNOWN_TENANTS', async () => {
       setHostname('wallets.company.com');
       const resolvePromise = service.resolve();
-      httpMock.expectOne(CUSTOM_DOMAIN_URL).flush({ 'wallets.company.com': 'unknowntenant' });
+      httpMock.expectOne(CUSTOM_DOMAIN_URL).flush({
+        domains: { 'wallets.company.com': { tenantId: 'unknowntenant', envId: 'stg' } },
+        env: {},
+      });
       await resolvePromise;
       expect(service.tenant()).toBe(FALLBACK_TENANT);
     });
@@ -157,7 +169,7 @@ describe('TenantService', () => {
     it('../evil.stg.eudistack.net → first label empty → JSON miss → FALLBACK_TENANT', async () => {
       setHostname('../evil.stg.eudistack.net');
       const resolvePromise = service.resolve();
-      httpMock.expectOne(CUSTOM_DOMAIN_URL).flush({});
+      httpMock.expectOne(CUSTOM_DOMAIN_URL).flush({ domains: {}, env: {} });
       await resolvePromise;
       expect(service.tenant()).toBe(FALLBACK_TENANT);
     });
@@ -165,7 +177,7 @@ describe('TenantService', () => {
     it('dome%00.stg → % fails regex → JSON miss → FALLBACK_TENANT', async () => {
       setHostname('dome%00.stg');
       const resolvePromise = service.resolve();
-      httpMock.expectOne(CUSTOM_DOMAIN_URL).flush({});
+      httpMock.expectOne(CUSTOM_DOMAIN_URL).flush({ domains: {}, env: {} });
       await resolvePromise;
       expect(service.tenant()).toBe(FALLBACK_TENANT);
     });
@@ -173,7 +185,7 @@ describe('TenantService', () => {
     it('empty string → FALLBACK_TENANT', async () => {
       setHostname('');
       const resolvePromise = service.resolve();
-      httpMock.expectOne(CUSTOM_DOMAIN_URL).flush({});
+      httpMock.expectOne(CUSTOM_DOMAIN_URL).flush({ domains: {}, env: {} });
       await resolvePromise;
       expect(service.tenant()).toBe(FALLBACK_TENANT);
     });
@@ -182,7 +194,7 @@ describe('TenantService', () => {
       setHostname('newclient-stg.eudistack.net');
       const resolvePromise = service.resolve();
       // 'newclient' passes regex but is not in KNOWN_TENANTS → falls through to JSON
-      httpMock.expectOne(CUSTOM_DOMAIN_URL).flush({});
+      httpMock.expectOne(CUSTOM_DOMAIN_URL).flush({ domains: {}, env: {} });
       await resolvePromise;
       expect(service.tenant()).toBe(FALLBACK_TENANT);
     });

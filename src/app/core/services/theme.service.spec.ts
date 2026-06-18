@@ -446,6 +446,183 @@ describe('ThemeService', () => {
     });
   });
 
+  // --- sanitizedFooter getter (EUDISTACK-606 / ADR-arch-002 + ADR-arch-003 + AD-1) ---
+
+  describe('sanitizedFooter', () => {
+    // EC-04 — no theme loaded → snapshot is null → footerEmbedCode is undefined → returns null
+    it('EC-04: returns null when theme is not loaded (snapshot is null)', () => {
+      expect(service.sanitizedFooter).toBeNull();
+    });
+
+    // EC-04 — theme loaded but footerEmbedCode is null → returns null
+    it('EC-04: returns null when theme has footerEmbedCode set to null', async () => {
+      const loadPromise = service.load();
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
+      req.flush({ ...mockTheme, content: { ...mockTheme.content, footerEmbedCode: null } });
+      await loadPromise;
+
+      expect(service.sanitizedFooter).toBeNull();
+    });
+
+    // EC-04 — theme loaded but footerEmbedCode is undefined → returns null
+    it('EC-04: returns null when footerEmbedCode is absent (undefined)', async () => {
+      const themeWithoutFooter = {
+        ...mockTheme,
+        content: { links: [], footer: null, onboardingUrl: null, supportUrl: null, walletUrl: null, knowledgeBaseUrl: null },
+      };
+      const loadPromise = service.load();
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
+      req.flush(themeWithoutFooter);
+      await loadPromise;
+
+      expect(service.sanitizedFooter).toBeNull();
+    });
+
+    // AC-01 — valid allowed footer HTML → non-null SafeHtml
+    it('AC-01: returns non-null SafeHtml for valid allowed footer HTML', async () => {
+      const loadPromise = service.load();
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
+      req.flush({
+        ...mockTheme,
+        content: { ...mockTheme.content, footerEmbedCode: '<div class="footer"><span>Register</span></div>' },
+      });
+      await loadPromise;
+
+      expect(service.sanitizedFooter).not.toBeNull();
+    });
+
+    // AC-03 — allow-list: permitted tags and attributes preserved in footer
+    it('AC-03: preserves allowed footer tags (footer, nav, a) and attributes (class, href, target)', async () => {
+      const loadPromise = service.load();
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
+      req.flush({
+        ...mockTheme,
+        content: {
+          ...mockTheme.content,
+          footerEmbedCode: '<footer><a href="https://example.com" target="_blank" rel="noopener">Sign Up</a></footer>',
+        },
+      });
+      await loadPromise;
+
+      const result = service.sanitizedFooter;
+      expect(result).not.toBeNull();
+      const html = (result as any).changingThisBreaksApplicationSecurity as string;
+      expect(html).toContain('<footer>');
+      expect(html).toContain('https://example.com');
+      expect(html).toContain('Sign Up');
+    });
+
+    // EC-01 — only prohibited tags → DOMPurify strips everything → empty → null
+    it('EC-01: returns null when all footer content is stripped (only prohibited tags)', async () => {
+      const loadPromise = service.load();
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
+      req.flush({
+        ...mockTheme,
+        content: { ...mockTheme.content, footerEmbedCode: '<script>alert("xss")</script>' },
+      });
+      await loadPromise;
+
+      expect(service.sanitizedFooter).toBeNull();
+    });
+
+    // EC-02 — mixed allowed + prohibited → prohibited stripped, allowed retained
+    it('EC-02: strips prohibited footer content while preserving allowed content in mixed input', async () => {
+      const loadPromise = service.load();
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
+      req.flush({
+        ...mockTheme,
+        content: { ...mockTheme.content, footerEmbedCode: '<footer>safe footer</footer><script>stolen()</script>' },
+      });
+      await loadPromise;
+
+      const result = service.sanitizedFooter;
+      expect(result).not.toBeNull();
+      const html = (result as any).changingThisBreaksApplicationSecurity as string;
+      expect(html).toContain('safe footer');
+      expect(html).not.toContain('<script>');
+      expect(html).not.toContain('stolen');
+    });
+
+    // EC-03 — deep nesting of allowed tags → preserved
+    it('EC-03: handles deeply nested allowed footer tags without stripping valid content', async () => {
+      const loadPromise = service.load();
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
+      req.flush({
+        ...mockTheme,
+        content: {
+          ...mockTheme.content,
+          footerEmbedCode: '<footer><nav><ul><li><div><span>deep</span></div></li></ul></nav></footer>',
+        },
+      });
+      await loadPromise;
+
+      const result = service.sanitizedFooter;
+      expect(result).not.toBeNull();
+      const html = (result as any).changingThisBreaksApplicationSecurity as string;
+      expect(html).toContain('deep');
+    });
+
+    // ES-01 — <script> injection → stripped → null
+    it('ES-01: strips <script> footer injection — result is null when no allowed content remains', async () => {
+      const loadPromise = service.load();
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
+      req.flush({
+        ...mockTheme,
+        content: { ...mockTheme.content, footerEmbedCode: '<script>document.cookie="stolen"</script>' },
+      });
+      await loadPromise;
+
+      expect(service.sanitizedFooter).toBeNull();
+    });
+
+    // ES-02 — javascript: href → stripped, tag retained with text
+    it('ES-02: strips javascript: href in footer — SafeHtml is non-null but href is absent', async () => {
+      const loadPromise = service.load();
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
+      req.flush({
+        ...mockTheme,
+        content: { ...mockTheme.content, footerEmbedCode: '<a href="javascript:alert(1)">click me</a>' },
+      });
+      await loadPromise;
+
+      const result = service.sanitizedFooter;
+      expect(result).not.toBeNull();
+      const html = (result as any).changingThisBreaksApplicationSecurity as string;
+      expect(html).not.toContain('javascript:');
+      expect(html).toContain('click me');
+    });
+
+    // ES-03 — on* event handler → stripped, element retained
+    it('ES-03: strips on* event handlers from footer element — element kept but handler absent', async () => {
+      const loadPromise = service.load();
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
+      req.flush({
+        ...mockTheme,
+        content: { ...mockTheme.content, footerEmbedCode: '<div onclick="alert(1)">safe text</div>' },
+      });
+      await loadPromise;
+
+      const result = service.sanitizedFooter;
+      expect(result).not.toBeNull();
+      const html = (result as any).changingThisBreaksApplicationSecurity as string;
+      expect(html).not.toContain('onclick');
+      expect(html).toContain('safe text');
+    });
+
+    // ES-04 — <style> injection → stripped → null
+    it('ES-04: strips <style> injection from footer — result is null when no allowed content remains', async () => {
+      const loadPromise = service.load();
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
+      req.flush({
+        ...mockTheme,
+        content: { ...mockTheme.content, footerEmbedCode: '<style>body { display: none !important; }</style>' },
+      });
+      await loadPromise;
+
+      expect(service.sanitizedFooter).toBeNull();
+    });
+  });
+
   // --- sanitizeEmbedHtml (EUDISTACK-605 / ADR-arch-002 + ADR-arch-003) ---
 
   describe('sanitizeEmbedHtml', () => {
