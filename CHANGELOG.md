@@ -5,6 +5,9 @@
 ### Changed (2026-06-18)
 - Resolved multiple Critical and High severity vulnerabilities in frontend build dependencies.
 
+## [3.3.2] - 2026-06-18
+- **SSE URL resolution** is resolved with the appropiate canonical or non-canonical URL.
+
 ## [3.3.1] - 2026-06-18
 
 ### Added (2026-06-18)
