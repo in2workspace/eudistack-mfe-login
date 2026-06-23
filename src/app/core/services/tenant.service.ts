@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { timeout } from 'rxjs/operators';
 import { FALLBACK_TENANT, KNOWN_TENANTS } from '../constants/tenants.constants';
-import { CustomDomainConfig, CustomDomainEnv } from '../models/custom-domain.model';
+import { CustomDomainConfig } from '../models/custom-domain.model';
 
 @Injectable({ providedIn: 'root' })
 export class TenantService {
@@ -12,10 +12,8 @@ export class TenantService {
 
   private readonly _tenant = signal<string>(FALLBACK_TENANT);
   private readonly _isCanonical = signal<boolean>(true);
-  private readonly _resolvedEnv = signal<CustomDomainEnv | null>(null);
   public readonly tenant: Signal<string> = this._tenant.asReadonly();
   public readonly isCanonical: Signal<boolean> = this._isCanonical.asReadonly();
-  public readonly resolvedEnv: Signal<CustomDomainEnv | null> = this._resolvedEnv.asReadonly();
   private readonly http = inject(HttpClient);
 
 
@@ -24,7 +22,6 @@ export class TenantService {
     if (fromHostname) {
       this._tenant.set(fromHostname);
       this._isCanonical.set(true);
-      this._resolvedEnv.set(null);
       return;
     }
 
@@ -32,19 +29,12 @@ export class TenantService {
       const config = await firstValueFrom(
         this.http
           .get<CustomDomainConfig>('/assets/tenants/custom-domain.json')
-          .pipe(timeout(2500))
+          .pipe(timeout(800))
       );
-      const entry = config?.domains?.[window.location.hostname];
-      const slug = entry?.tenantId;
-      const envId = entry?.envId;
+      const slug = config?.domains?.[window.location.hostname]?.tenantId;
       if (slug && this.isValid(slug)) {
         this._tenant.set(slug);
         this._isCanonical.set(false);
-        const resolvedEnv = config?.tenants?.[slug]?.env?.[envId ?? ''] ?? null;
-        if(!resolvedEnv) {
-          console.warn(`No environment configuration found for tenant "${slug}" and envId "${envId}"`);
-        }
-        this._resolvedEnv.set(resolvedEnv);
         return;
       }
     } catch {
@@ -53,7 +43,6 @@ export class TenantService {
 
     this._tenant.set(FALLBACK_TENANT);
     this._isCanonical.set(false);
-    this._resolvedEnv.set(null);
   }
 
   private fromHostname(hostname: string): string | null {

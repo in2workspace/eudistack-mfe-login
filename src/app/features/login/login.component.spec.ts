@@ -9,9 +9,7 @@ import { QRCodeComponent } from 'angularx-qrcode';
 import { LoginComponent } from './login.component';
 import { SseService } from '../../core/services/sse.service';
 import { ThemeService } from '../../core/services/theme.service';
-import { TenantService } from '../../core/services/tenant.service';
 import { Theme } from '../../core/models/theme.model';
-import { CustomDomainEnv } from '../../core/models/custom-domain.model';
 
 @Component({ selector: 'qrcode', template: '', standalone: true })
 class MockQRCodeComponent {
@@ -20,14 +18,6 @@ class MockQRCodeComponent {
   @Input() errorCorrectionLevel = '';
   @Input() margin = 0;
   @Input() elementType = '';
-}
-
-function makeTenantService(overrides: { isCanonical?: boolean; resolvedEnv?: CustomDomainEnv | null } = {}) {
-  return {
-    isCanonical: jest.fn().mockReturnValue(overrides.isCanonical ?? true),
-    resolvedEnv: jest.fn().mockReturnValue(overrides.resolvedEnv ?? null),
-    tenant: jest.fn().mockReturnValue('dome'),
-  };
 }
 
 describe('LoginComponent', () => {
@@ -59,10 +49,7 @@ describe('LoginComponent', () => {
     i18n: { defaultLang: 'en', available: ['en'] }
   };
 
-  function createComponent(
-    queryParams: Record<string, string> = {},
-    tenantOverrides: { isCanonical?: boolean; resolvedEnv?: CustomDomainEnv | null } = {}
-  ) {
+  function createComponent(queryParams: Record<string, string> = {}) {
     theme$ = new BehaviorSubject<Theme | null>(baseTheme);
 
     TestBed.configureTestingModule({
@@ -86,10 +73,6 @@ describe('LoginComponent', () => {
             observeTheme: () => theme$.asObservable(),
             sanitizeEmbedHtml: jest.fn().mockReturnValue(null),
           }
-        },
-        {
-          provide: TenantService,
-          useValue: makeTenantService(tenantOverrides),
         }
       ]
     }).overrideComponent(LoginComponent, {
@@ -154,11 +137,8 @@ describe('LoginComponent', () => {
   // --- walletRedirectUrl ---
 
   describe('walletRedirectUrl', () => {
-    it('non-canonical without resolvedEnv: returns empty string', () => {
-      createComponent(
-        { authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' },
-        { isCanonical: false, resolvedEnv: null }
-      );
+    it('should return empty string when walletUrl is not configured', () => {
+      createComponent({ authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' });
       fixture.detectChanges();
 
       expect(component.walletRedirectUrl).toBe('');
@@ -167,50 +147,25 @@ describe('LoginComponent', () => {
     it('should return empty string when authRequest is empty', () => {
       createComponent({});
       fixture.detectChanges();
+      theme$.next({ ...baseTheme, content: { ...baseTheme.content, walletUrl: 'https://wallet.example.com' } });
 
       expect(component.walletRedirectUrl).toBe('');
     });
 
-    it('canonical: builds wallet URL using /wallet base', () => {
-      createComponent(
-        { authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc&state=s1' },
-        { isCanonical: true }
-      );
+    it('should build wallet URL with authorization_request query parameter', () => {
+      createComponent({ authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc&state=s1' });
       fixture.detectChanges();
-
-      const expected = '/wallet/protocol/callback?authorization_request=' +
-        encodeURIComponent('https://verifier.example.com/oid4vp/auth?nonce=abc&state=s1');
-      expect(component.walletRedirectUrl).toBe(expected);
-    });
-
-    it('non-canonical: builds wallet URL from resolvedEnv.wallet', () => {
-      const envConfig: CustomDomainEnv = {
-        issuer: 'https://dome.stg.eudistack.net/issuer',
-        verifier: 'https://dome.stg.eudistack.net/verifier',
-        wallet: 'https://wallet.example.com',
-      };
-      createComponent(
-        { authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc&state=s1' },
-        { isCanonical: false, resolvedEnv: envConfig }
-      );
-      fixture.detectChanges();
+      theme$.next({ ...baseTheme, content: { ...baseTheme.content, walletUrl: 'https://wallet.example.com' } });
 
       const expected = 'https://wallet.example.com/protocol/callback?authorization_request=' +
         encodeURIComponent('https://verifier.example.com/oid4vp/auth?nonce=abc&state=s1');
       expect(component.walletRedirectUrl).toBe(expected);
     });
 
-    it('should strip trailing slashes from wallet base URL', () => {
-      const envConfig: CustomDomainEnv = {
-        issuer: 'https://dome.stg.eudistack.net/issuer',
-        verifier: 'https://dome.stg.eudistack.net/verifier',
-        wallet: 'https://wallet.example.com/',
-      };
-      createComponent(
-        { authRequest: 'https://verifier.example.com/path?q=1' },
-        { isCanonical: false, resolvedEnv: envConfig }
-      );
+    it('should strip trailing slashes from walletUrl', () => {
+      createComponent({ authRequest: 'https://verifier.example.com/path?q=1' });
       fixture.detectChanges();
+      theme$.next({ ...baseTheme, content: { ...baseTheme.content, walletUrl: 'https://wallet.example.com/' } });
 
       const expected = 'https://wallet.example.com/protocol/callback?authorization_request=' +
         encodeURIComponent('https://verifier.example.com/path?q=1');
@@ -218,10 +173,11 @@ describe('LoginComponent', () => {
     });
 
     it('should encode special characters in authRequest', () => {
-      createComponent({ authRequest: 'not-a-url' }, { isCanonical: true });
+      createComponent({ authRequest: 'not-a-url' });
       fixture.detectChanges();
+      theme$.next({ ...baseTheme, content: { ...baseTheme.content, walletUrl: 'https://wallet.example.com' } });
 
-      const expected = '/wallet/protocol/callback?authorization_request=' +
+      const expected = 'https://wallet.example.com/protocol/callback?authorization_request=' +
         encodeURIComponent('not-a-url');
       expect(component.walletRedirectUrl).toBe(expected);
     });
@@ -293,28 +249,24 @@ describe('LoginComponent', () => {
 
   describe('openWallet', () => {
     it('should open wallet in new tab when walletRedirectUrl is available', () => {
-      createComponent(
-        { authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' },
-        { isCanonical: true }
-      );
+      createComponent({ authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' });
       fixture.detectChanges();
+      theme$.next({ ...baseTheme, content: { ...baseTheme.content, walletUrl: 'https://wallet.example.com' } });
 
       const mockWindow = {} as Window;
       jest.spyOn(window, 'open').mockReturnValue(mockWindow);
 
       component.openWallet();
 
-      const expectedUrl = '/wallet/protocol/callback?authorization_request=' +
+      const expectedUrl = 'https://wallet.example.com/protocol/callback?authorization_request=' +
         encodeURIComponent('https://verifier.example.com/oid4vp/auth?nonce=abc');
       expect(window.open).toHaveBeenCalledWith(expectedUrl, '_blank');
     });
 
     it('should not throw when popup is blocked (fallback to redirect)', () => {
-      createComponent(
-        { authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' },
-        { isCanonical: true }
-      );
+      createComponent({ authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' });
       fixture.detectChanges();
+      theme$.next({ ...baseTheme, content: { ...baseTheme.content, walletUrl: 'https://wallet.example.com' } });
 
       jest.spyOn(window, 'open').mockReturnValue(null);
 
@@ -394,38 +346,17 @@ describe('LoginComponent', () => {
       expect(copyButton).toBeNull();
     });
 
-    it('canonical: shows toggle-section (walletUrl is always /wallet)', () => {
-      createComponent(
-        { authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' },
-        { isCanonical: true }
-      );
+    it('should show toggle-section when walletUrl is configured', () => {
+      createComponent({ authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' });
+      theme$.next({ ...baseTheme, content: { ...baseTheme.content, walletUrl: 'https://wallet.example.com' } });
       fixture.detectChanges();
 
       const toggle = fixture.nativeElement.querySelector('.toggle-section');
       expect(toggle).toBeTruthy();
     });
 
-    it('non-canonical with wallet in resolvedEnv: shows toggle-section', () => {
-      const envConfig: CustomDomainEnv = {
-        issuer: 'https://dome.stg.eudistack.net/issuer',
-        verifier: 'https://dome.stg.eudistack.net/verifier',
-        wallet: 'https://wallet.example.com',
-      };
-      createComponent(
-        { authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' },
-        { isCanonical: false, resolvedEnv: envConfig }
-      );
-      fixture.detectChanges();
-
-      const toggle = fixture.nativeElement.querySelector('.toggle-section');
-      expect(toggle).toBeTruthy();
-    });
-
-    it('non-canonical without resolvedEnv: hides toggle-section', () => {
-      createComponent(
-        { authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' },
-        { isCanonical: false, resolvedEnv: null }
-      );
+    it('should hide toggle-section when walletUrl is not configured', () => {
+      createComponent({ authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' });
       fixture.detectChanges();
 
       const toggle = fixture.nativeElement.querySelector('.toggle-section');
@@ -433,10 +364,8 @@ describe('LoginComponent', () => {
     });
 
     it('should show wallet button in same-device mode when walletRedirectUrl exists', () => {
-      createComponent(
-        { authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' },
-        { isCanonical: true }
-      );
+      createComponent({ authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' });
+      theme$.next({ ...baseTheme, content: { ...baseTheme.content, walletUrl: 'https://wallet.example.com' } });
       fixture.detectChanges();
 
       component.sameDevice = true;
@@ -517,53 +446,14 @@ describe('LoginComponent', () => {
       tick(3000);
     }));
 
-    it('canonical: redirects to /issuer/home 3 seconds after timeout', fakeAsync(() => {
+    it('should redirect to /issuer/home 3 seconds after timeout', fakeAsync(() => {
       Object.defineProperty(window, 'location', {
         value: { href: '' },
         writable: true,
         configurable: true
       });
 
-      createComponent({ state: 's123' }, { isCanonical: true, resolvedEnv: null });
-      fixture.detectChanges();
-
-      tick(120_000 + 3000);
-
-      expect(window.location.href).toBe('/issuer/home');
-
-      component.ngOnDestroy();
-    }));
-
-    it('non-canonical: redirects to resolvedEnv.issuer/home 3 seconds after timeout', fakeAsync(() => {
-      Object.defineProperty(window, 'location', {
-        value: { href: '' },
-        writable: true,
-        configurable: true
-      });
-
-      const envConfig: CustomDomainEnv = {
-        issuer: 'https://dome.stg.eudistack.net/issuer',
-        verifier: 'https://dome.stg.eudistack.net/verifier',
-        wallet: 'https://wallet.dome.eu',
-      };
-      createComponent({ state: 's123' }, { isCanonical: false, resolvedEnv: envConfig });
-      fixture.detectChanges();
-
-      tick(120_000 + 3000);
-
-      expect(window.location.href).toBe('https://dome.stg.eudistack.net/issuer/home');
-
-      component.ngOnDestroy();
-    }));
-
-    it('non-canonical without resolvedEnv: falls back to /issuer/home', fakeAsync(() => {
-      Object.defineProperty(window, 'location', {
-        value: { href: '' },
-        writable: true,
-        configurable: true
-      });
-
-      createComponent({ state: 's123' }, { isCanonical: false, resolvedEnv: null });
+      createComponent({ state: 's123' });
       fixture.detectChanges();
 
       tick(120_000 + 3000);
@@ -687,8 +577,7 @@ describe('LoginComponent', () => {
           {
             provide: ThemeService,
             useValue: { observeTheme: () => localTheme$.asObservable(), sanitizeEmbedHtml: sanitizeEmbedHtmlImpl }
-          },
-          { provide: TenantService, useValue: makeTenantService() },
+          }
         ]
       }).overrideComponent(LoginComponent, {
         remove: { imports: [QRCodeComponent] },
@@ -796,8 +685,7 @@ describe('LoginComponent', () => {
           {
             provide: ThemeService,
             useValue: { observeTheme: () => localTheme$.asObservable(), sanitizeEmbedHtml }
-          },
-          { provide: TenantService, useValue: makeTenantService() },
+          }
         ]
       }).overrideComponent(LoginComponent, {
         remove: { imports: [QRCodeComponent] },
