@@ -42,43 +42,50 @@
       </div>
 
       <!-- QR card -->
-      <div class="card qr-card" *ngIf="!timedOut && !errorMessage && !showSuccess">
-        <div class="qr-card-content" [class.fade-slide-in]="true">
+      <ng-container *ngIf="!timedOut && !errorMessage && !showSuccess">
 
-          <!-- Instructions (left) -->
-          <div class="instructions">
-            <h1 class="instructions-title">{{ 'login.instructions.title' | translate }}</h1>
-            <ol>
-              <li>
-                <span *ngIf="theme.content.walletUrl; else noWalletLink">
-                  {{ 'login.instructions.step1.before' | translate }}
-                  <a [href]="theme.content.walletUrl"
-                     target="_blank"
-                     rel="noopener noreferrer">{{ 'login.instructions.step1.link' | translate }}</a>
-                  {{ 'login.instructions.step1.after' | translate }}
-                </span>
-                <ng-template #noWalletLink>
-                  {{ 'login.instructions.step1.noLink' | translate }}
-                </ng-template>
-              </li>
-              <li>{{ 'login.instructions.step2' | translate }}</li>
-              <li>{{ 'login.instructions.step3' | translate }}</li>
-            </ol>
-          </div>
+        <!-- Contextual title built from the tenant identity (branding.name) -->
+        <h1 class="signin-title">{{ 'login.title' | translate:{ name: theme.branding.name } }}</h1>
+        <p class="signin-subtitle">{{ 'login.subtitle' | translate:{ name: theme.branding.name } }}</p>
 
-          <!-- QR container (right) -->
-          <div class="qr-container">
-            <div class="qr-frame" *ngIf="!sameDevice">
-              <qrcode
-                [qrdata]="authRequest"
-                [width]="300"
-                [errorCorrectionLevel]="'H'"
-                [margin]="3"
-                [elementType]="'svg'">
-              </qrcode>
-            </div>
-            <div class="qr-actions" *ngIf="!sameDevice">
-              <span class="qr-title">{{ 'login.qr.hint' | translate }}</span>
+        <div class="login-card fade-slide-in">
+          <div class="login-card-content">
+
+            <!-- Access column: QR (desktop) / instruction text (mobile) + access code -->
+            <div class="access-column">
+
+              <!-- QR (hidden on mobile via CSS) -->
+              <div class="qr-block">
+                <div class="qr-frame">
+                  <qrcode
+                    [qrdata]="authRequest"
+                    [width]="300"
+                    [errorCorrectionLevel]="'H'"
+                    [margin]="3"
+                    [elementType]="'svg'">
+                  </qrcode>
+                </div>
+                <span class="access-caption">{{ 'login.qr.scanWith' | translate }}</span>
+
+                <!-- Countdown timer -->
+                <div class="countdown-container" *ngIf="waitingForVerification"
+                     role="timer" [attr.aria-label]="'login.timer.remaining' | translate:{seconds: remainingSeconds}">
+                  <svg class="countdown-svg" viewBox="0 0 52 52" aria-hidden="true">
+                    <circle class="countdown-track" cx="26" cy="26" r="22" fill="none" stroke-width="3" />
+                    <circle class="countdown-progress" cx="26" cy="26" r="22" fill="none" stroke-width="3"
+                            [attr.stroke-dasharray]="2 * 3.1416 * 22"
+                            [attr.stroke-dashoffset]="2 * 3.1416 * 22 * (1 - countdownPercentage / 100)"
+                            transform="rotate(-90 26 26)" />
+                  </svg>
+                  <span class="countdown-text" aria-hidden="true">{{ remainingSeconds }}</span>
+                </div>
+              </div>
+
+              <!-- Instruction text (shown instead of the QR on mobile via CSS) -->
+              <p class="mobile-instruction">{{ 'login.mobile.instruction' | translate:{ name: theme.branding.name } }}</p>
+
+              <!-- Access code -->
+              <span class="access-subcaption">{{ 'login.qr.orAccessCode' | translate }}</span>
               <button class="copy-button"
                       [class.copy-success]="copied"
                       [attr.aria-label]="'login.qr.copy' | translate"
@@ -88,53 +95,45 @@
               </button>
             </div>
 
-            <!-- Countdown timer -->
-            <div class="countdown-container" *ngIf="waitingForVerification && !sameDevice"
-                 role="timer" [attr.aria-label]="'login.timer.remaining' | translate:{seconds: remainingSeconds}">
-              <svg class="countdown-svg" viewBox="0 0 52 52" aria-hidden="true">
-                <circle class="countdown-track" cx="26" cy="26" r="22" fill="none" stroke-width="3" />
-                <circle class="countdown-progress" cx="26" cy="26" r="22" fill="none" stroke-width="3"
-                        [attr.stroke-dasharray]="2 * 3.1416 * 22"
-                        [attr.stroke-dashoffset]="2 * 3.1416 * 22 * (1 - countdownPercentage / 100)"
-                        transform="rotate(-90 26 26)" />
-              </svg>
-              <span class="countdown-text" aria-hidden="true">{{ remainingSeconds }}</span>
-            </div>
-
-            <div class="same-device-section fade-slide-in" *ngIf="sameDevice">
-              <div class="same-device-title">
-                <h2>{{ 'login.sameDevice.title' | translate }}</h2>
-              </div>
-              <button class="wallet-button"
-                      *ngIf="walletRedirectUrl"
-                      [attr.aria-label]="'login.sameDevice.wallet' | translate"
-                      (click)="openWallet()">
-                <span class="material-icons" aria-hidden="true">account_balance_wallet</span>
-                {{ 'login.sameDevice.wallet' | translate }}
-              </button>
-            </div>
+            <!-- Instructions -->
+            <ol class="instructions">
+              <li>
+                <span class="step-icon material-icons" aria-hidden="true">wallet</span>
+                <span class="step-body">
+                  <span class="step-title">{{ 'login.instructions.step1.title' | translate }}</span>
+                  <span class="step-desc">{{ 'login.instructions.step1.desc' | translate }}</span>
+                </span>
+              </li>
+              <li>
+                <span class="step-icon material-icons" aria-hidden="true">qr_code</span>
+                <span class="step-body">
+                  <span class="step-title">{{ 'login.instructions.step2.title' | translate }}</span>
+                  <span class="step-desc">{{ 'login.instructions.step2.desc' | translate }}</span>
+                </span>
+              </li>
+              <li>
+                <span class="step-icon material-icons" aria-hidden="true">person</span>
+                <span class="step-body">
+                  <span class="step-title">{{ 'login.instructions.step3.title' | translate }}</span>
+                  <span class="step-desc">{{ 'login.instructions.step3.desc' | translate }}</span>
+                </span>
+              </li>
+            </ol>
           </div>
-
         </div>
 
-        <!-- Same-device / QR toggle -->
-        <div class="toggle-section" *ngIf="theme.content.walletUrl">
-          <button *ngIf="!sameDevice" class="toggle-button" (click)="toggleSameDevice()">
-            {{ 'login.sameDevice.switch' | translate }}
-          </button>
-          <button *ngIf="sameDevice" class="toggle-button" (click)="toggleSameDevice()">
-            {{ 'login.qr.switch' | translate }}
-          </button>
-        </div>
+        <!-- Primary CTA: open the digital wallet on this device -->
+        <button class="wallet-cta"
+                *ngIf="walletRedirectUrl"
+                [attr.aria-label]="'login.wallet.cta' | translate"
+                (click)="openWallet()">
+          <span>{{ 'login.wallet.cta' | translate }}</span>
+          <span class="material-icons" aria-hidden="true">open_in_new</span>
+        </button>
+        <p class="wallet-hint" *ngIf="walletRedirectUrl">{{ 'login.wallet.hint' | translate }}</p>
 
-        <div class="guides-section" *ngIf="theme.content.knowledgeBaseUrl">
-          <a [href]="theme.content.knowledgeBaseUrl"
-             target="_blank"
-             rel="noopener noreferrer">{{ 'login.support.guides' | translate }}</a>
-        </div>
-      </div>
-
-      <!-- Timeout message -->
+        
+        <!-- Timeout message -->
       <div class="card timeout-card" *ngIf="timedOut" role="alert">
         <p>{{ 'login.timeout' | translate }}</p>
       </div>
@@ -143,21 +142,17 @@
       <div class="card error-card" *ngIf="errorMessage" role="alert">
         <p>{{ errorMessage | translate }}</p>
       </div>
-
+      
       <!-- Support card -->
       <div class="support-card" *ngIf="theme.content.supportUrl">
-        <span>{{ 'login.support.question' | translate }}</span>
-        <div class="help-container">
-          <span class="material-icons" aria-hidden="true">build</span>
-          <span class="help">
-            {{ 'login.support.before' | translate }}
-            <a [href]="theme.content.supportUrl"
-               target="_blank"
-               rel="noopener noreferrer">{{ 'login.support.link' | translate }}</a>
-          </span>
-        </div>
+        <span class="material-icons" aria-hidden="true">mail</span>
+        <span class="support-question">{{ 'login.support.needHelp' | translate }}</span>
+        <a class="support-link"
+           [href]="theme.content.supportUrl"
+           target="_blank"
+           rel="noopener noreferrer">{{ 'login.support.contact' | translate }}</a>
       </div>
-
+    </ng-container>
     </ng-container>
   </div>
 </div>
