@@ -9,7 +9,9 @@ import { QRCodeComponent } from 'angularx-qrcode';
 import { LoginComponent } from './login.component';
 import { SseService } from '../../core/services/sse.service';
 import { ThemeService } from '../../core/services/theme.service';
+import { TenantService } from '../../core/services/tenant.service';
 import { Theme } from '../../core/models/theme.model';
+import { CustomDomainEnv } from '../../core/models/custom-domain.model';
 
 @Component({ selector: 'qrcode', template: '', standalone: true })
 class MockQRCodeComponent {
@@ -18,6 +20,14 @@ class MockQRCodeComponent {
   @Input() errorCorrectionLevel = '';
   @Input() margin = 0;
   @Input() elementType = '';
+}
+
+function makeTenantService(overrides: { isCanonical?: boolean; resolvedEnv?: CustomDomainEnv | null } = {}) {
+  return {
+    isCanonical: jest.fn().mockReturnValue(overrides.isCanonical ?? true),
+    resolvedEnv: jest.fn().mockReturnValue(overrides.resolvedEnv ?? null),
+    tenant: jest.fn().mockReturnValue('dome'),
+  };
 }
 
 describe('LoginComponent', () => {
@@ -49,7 +59,10 @@ describe('LoginComponent', () => {
     i18n: { defaultLang: 'en', available: ['en'] }
   };
 
-  function createComponent(queryParams: Record<string, string> = {}) {
+  function createComponent(
+    queryParams: Record<string, string> = {},
+    tenantOverrides: { isCanonical?: boolean; resolvedEnv?: CustomDomainEnv | null } = {}
+  ) {
     theme$ = new BehaviorSubject<Theme | null>(baseTheme);
 
     TestBed.configureTestingModule({
@@ -73,6 +86,10 @@ describe('LoginComponent', () => {
             observeTheme: () => theme$.asObservable(),
             sanitizeEmbedHtml: jest.fn().mockReturnValue(null),
           }
+        },
+        {
+          provide: TenantService,
+          useValue: makeTenantService(tenantOverrides),
         }
       ]
     }).overrideComponent(LoginComponent, {
@@ -446,14 +463,53 @@ describe('LoginComponent', () => {
       tick(3000);
     }));
 
-    it('should redirect to /issuer/home 3 seconds after timeout', fakeAsync(() => {
+    it('canonical: redirects to /issuer/home 3 seconds after timeout', fakeAsync(() => {
       Object.defineProperty(window, 'location', {
         value: { href: '' },
         writable: true,
         configurable: true
       });
 
-      createComponent({ state: 's123' });
+      createComponent({ state: 's123' }, { isCanonical: true, resolvedEnv: null });
+      fixture.detectChanges();
+
+      tick(120_000 + 3000);
+
+      expect(window.location.href).toBe('/issuer/home');
+
+      component.ngOnDestroy();
+    }));
+
+    it('non-canonical: redirects to resolvedEnv.issuer/home 3 seconds after timeout', fakeAsync(() => {
+      Object.defineProperty(window, 'location', {
+        value: { href: '' },
+        writable: true,
+        configurable: true
+      });
+
+      const envConfig: CustomDomainEnv = {
+        issuer: 'https://dome.stg.eudistack.net/issuer',
+        verifier: 'https://dome.stg.eudistack.net/verifier',
+        wallet: 'https://wallet.dome.eu',
+      };
+      createComponent({ state: 's123' }, { isCanonical: false, resolvedEnv: envConfig });
+      fixture.detectChanges();
+
+      tick(120_000 + 3000);
+
+      expect(window.location.href).toBe('https://dome.stg.eudistack.net/issuer/home');
+
+      component.ngOnDestroy();
+    }));
+
+    it('non-canonical without resolvedEnv: falls back to /issuer/home', fakeAsync(() => {
+      Object.defineProperty(window, 'location', {
+        value: { href: '' },
+        writable: true,
+        configurable: true
+      });
+
+      createComponent({ state: 's123' }, { isCanonical: false, resolvedEnv: null });
       fixture.detectChanges();
 
       tick(120_000 + 3000);
@@ -577,7 +633,8 @@ describe('LoginComponent', () => {
           {
             provide: ThemeService,
             useValue: { observeTheme: () => localTheme$.asObservable(), sanitizeEmbedHtml: sanitizeEmbedHtmlImpl }
-          }
+          },
+          { provide: TenantService, useValue: makeTenantService() },
         ]
       }).overrideComponent(LoginComponent, {
         remove: { imports: [QRCodeComponent] },
@@ -685,7 +742,8 @@ describe('LoginComponent', () => {
           {
             provide: ThemeService,
             useValue: { observeTheme: () => localTheme$.asObservable(), sanitizeEmbedHtml }
-          }
+          },
+          { provide: TenantService, useValue: makeTenantService() },
         ]
       }).overrideComponent(LoginComponent, {
         remove: { imports: [QRCodeComponent] },

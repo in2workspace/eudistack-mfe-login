@@ -163,6 +163,59 @@ describe('TenantService', () => {
     });
   });
 
+  // ── resolvedEnv signal ────────────────────────────────────────────────────
+
+  describe('resolvedEnv()', () => {
+    it('is null after canonical resolution (no JSON fetch)', async () => {
+      setHostname('dome.stg.eudistack.net');
+      await service.resolve();
+      httpMock.expectNone(CUSTOM_DOMAIN_URL);
+      expect(service.resolvedEnv()).toBeNull();
+    });
+
+    it('is set when domain maps to a known tenant+env in tenants config', async () => {
+      const envConfig = { issuer: 'https://dome.stg.eudistack.net/issuer', verifier: 'https://dome.stg.eudistack.net/verifier', wallet: 'https://wallet.dome.eu' };
+      setHostname('wallets.company.com');
+      const resolvePromise = service.resolve();
+      httpMock.expectOne(CUSTOM_DOMAIN_URL).flush({
+        domains: { 'wallets.company.com': { tenantId: 'kpmg', envId: 'stg' } },
+        tenants: { kpmg: { defaultEnv: 'stg', env: { stg: envConfig } } },
+      });
+      await resolvePromise;
+      expect(service.resolvedEnv()).toEqual(envConfig);
+    });
+
+    it('is null when envId is not found in tenant env map', async () => {
+      setHostname('wallets.company.com');
+      const resolvePromise = service.resolve();
+      httpMock.expectOne(CUSTOM_DOMAIN_URL).flush({
+        domains: { 'wallets.company.com': { tenantId: 'kpmg', envId: 'pro' } },
+        tenants: { kpmg: { defaultEnv: 'stg', env: { stg: { issuer: '...', verifier: '...', wallet: '...' } } } },
+      });
+      await resolvePromise;
+      expect(service.resolvedEnv()).toBeNull();
+    });
+
+    it('is null when tenant not found in tenants config', async () => {
+      setHostname('wallets.company.com');
+      const resolvePromise = service.resolve();
+      httpMock.expectOne(CUSTOM_DOMAIN_URL).flush({
+        domains: { 'wallets.company.com': { tenantId: 'kpmg', envId: 'stg' } },
+        tenants: {},
+      });
+      await resolvePromise;
+      expect(service.resolvedEnv()).toBeNull();
+    });
+
+    it('is null after fallback (domain not in map)', async () => {
+      setHostname('wallets.company.com');
+      const resolvePromise = service.resolve();
+      httpMock.expectOne(CUSTOM_DOMAIN_URL).flush({ domains: {}, tenants: {} });
+      await resolvePromise;
+      expect(service.resolvedEnv()).toBeNull();
+    });
+  });
+
   // ── ES-05: path traversal guard ───────────────────────────────────────────
 
   describe('resolve() — ES-05 path traversal / invalid chars', () => {
