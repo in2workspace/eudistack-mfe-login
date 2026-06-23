@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { SafeHtml } from '@angular/platform-browser';
@@ -18,7 +18,8 @@ const ISSUER_HOME_PATH = '/issuer/home';
   standalone: true,
   imports: [CommonModule, QRCodeComponent, TranslateModule],
   templateUrl: './login.component.html',
-  styleUrls: ['./login.component.scss']
+  styleUrls: ['./login.component.scss'],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA]
 })
 export class LoginComponent implements OnInit, OnDestroy {
   authRequest = '';
@@ -29,7 +30,6 @@ export class LoginComponent implements OnInit, OnDestroy {
   footerHtml: SafeHtml | null = null;
   timedOut = false;
   errorMessage = '';
-  sameDevice = false;
   copied = false;
   waitingForVerification = false;
   showSuccess = false;
@@ -104,10 +104,6 @@ export class LoginComponent implements OnInit, OnDestroy {
       this.copied = true;
       setTimeout(() => this.copied = false, 2000);
     });
-  }
-
-  toggleSameDevice(): void {
-    this.sameDevice = !this.sameDevice;
   }
 
   navigateHome(): void {
