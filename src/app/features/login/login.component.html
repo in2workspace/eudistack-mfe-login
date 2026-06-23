@@ -50,9 +50,9 @@
             <h1 class="instructions-title">{{ 'login.instructions.title' | translate }}</h1>
             <ol>
               <li>
-                <span *ngIf="theme.content.walletUrl; else noWalletLink">
+                <span *ngIf="walletUrl; else noWalletLink">
                   {{ 'login.instructions.step1.before' | translate }}
-                  <a [href]="theme.content.walletUrl"
+                  <a [href]="walletUrl"
                      target="_blank"
                      rel="noopener noreferrer">{{ 'login.instructions.step1.link' | translate }}</a>
                   {{ 'login.instructions.step1.after' | translate }}
@@ -118,7 +118,7 @@
         </div>
 
         <!-- Same-device / QR toggle -->
-        <div class="toggle-section" *ngIf="theme.content.walletUrl">
+        <div class="toggle-section" *ngIf="walletUrl">
           <button *ngIf="!sameDevice" class="toggle-button" (click)="toggleSameDevice()">
             {{ 'login.sameDevice.switch' | translate }}
           </button>
