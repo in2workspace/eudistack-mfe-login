@@ -32,7 +32,7 @@ export class TenantService {
       const config = await firstValueFrom(
         this.http
           .get<CustomDomainConfig>('/assets/tenants/custom-domain.json')
-          .pipe(timeout(800))
+          .pipe(timeout(2500))
       );
       const entry = config?.domains?.[window.location.hostname];
       const slug = entry?.tenantId;
