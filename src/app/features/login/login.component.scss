@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background-color: var(--primary-color);
+  background: linear-gradient(135deg, #325fb2 0%, #14294e 100%);
   color: var(--primary-contrast-color);
   font-family: 'Blinker', sans-serif;
   font-size: medium;
@@ -38,9 +38,10 @@
   flex-direction: column;
   margin: auto;
   justify-content: flex-start;
-  align-items: stretch;
-  gap: 12px;
-  max-width: 80%;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  max-width: 720px;
   padding: 20px;
   padding-top: 0;
 }
@@ -62,80 +63,117 @@
   }
 }
 
+// — Contextual heading —
+.signin-title { font-size: 32px; font-weight: 700; margin: 0; text-align: center; }
+.signin-subtitle { font-size: 16px; margin: 0 0 8px; text-align: center; opacity: 0.85; max-width: 460px; }
 
-.qr-card-content { display: flex; justify-content: space-between; gap: 30px; width: 100%; height: 100%; }
-
-.instructions {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  text-align: left;
-  font-size: 20px;
-  .instructions-title { font-size: 25px; padding-left: 30px; margin: 0; }
-  ol { margin: 0; padding: 0; list-style-position: outside; li { padding-left: 30px; margin-bottom: 12px; } }
+// — Login card —
+.login-card {
+  width: 100%;
+  background-color: #355083;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 28px;
+  box-sizing: border-box;
 }
+.login-card-content { display: flex; justify-content: space-between; align-items: stretch; gap: 32px; }
 
-.qr-container { display: flex; flex-direction: column; justify-content: space-between; align-items: center; min-width: 230px; max-width: 300px; text-align: left; flex-grow: 1; gap: 20px; }
-.qr-frame { padding: 6px; border-radius: 8px; background-color: var(--primary-contrast-color); ::ng-deep canvas, ::ng-deep img, ::ng-deep svg { display: block; max-width: 100%; background-color: var(--primary-contrast-color); } ::ng-deep svg { width: 100% !important; height: auto !important; } }
-.qr-actions { display: flex; flex-direction: column; align-items: center; gap: 16px; }
-.qr-title { font-size: 16px; }
+// — Access column (QR / access code) —
+.access-column { display: flex; flex-direction: column; align-items: center; gap: 12px; min-width: 220px; }
+.qr-block { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.qr-frame { padding: 8px; border-radius: 12px; background-color: var(--primary-contrast-color); ::ng-deep canvas, ::ng-deep img, ::ng-deep svg { display: block; max-width: 100%; background-color: var(--primary-contrast-color); } ::ng-deep svg { width: 100% !important; height: auto !important; max-width: 200px; } }
+.access-caption { font-size: 15px; font-weight: 600; text-align: center; }
+.access-subcaption { font-size: 14px; opacity: 0.75; }
+.mobile-instruction { display: none; font-size: 15px; line-height: 1.5; text-align: center; margin: 0; }
 
 .copy-button {
-  background: none;
+  background-color: var(--primary-contrast-color);
   border: 1px solid var(--primary-contrast-color);
-  border-radius: 6px;
-  color: var(--primary-contrast-color);
+  border-radius: 8px;
+  color: var(--primary-color);
   font-size: 14px;
+  font-weight: 600;
   font-family: 'Blinker', sans-serif;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 12px;
-  &:hover { background-color: var(--primary-contrast-color); color: var(--primary-color); }
+  gap: 8px;
+  padding: 8px 16px;
+  &:hover { opacity: 0.9; }
   &:focus-visible { outline: 3px solid var(--primary-contrast-color); outline-offset: 2px; }
   &.copy-success { background-color: var(--status-success, #22c55e); border-color: var(--status-success, #22c55e); color: #fff; animation: copyBounce 0.35s ease-out; }
-  .material-icons { font-size: 18px; }
+  ion-icon { font-size: 18px; }
 }
 
 @keyframes copyBounce { 0% { transform: scale(1); } 40% { transform: scale(1.15); } 100% { transform: scale(1); } }
 
-.toggle-section { text-align: center; font-size: 16px; }
-.toggle-button { background: none; border: none; padding: 0; color: var(--primary-contrast-color); text-decoration: underline; cursor: pointer; font-family: inherit; font-size: inherit; &:hover { color: var(--secondary-contrast-color); } &:focus-visible { outline: 3px solid var(--primary-contrast-color); outline-offset: 2px; } }
-
-.guides-section { text-align: center; font-size: 16px; margin-top: 24px; a { color: var(--primary-contrast-color); text-decoration: underline; font-family: inherit; font-size: inherit; font-weight: normal; &:hover { color: var(--secondary-contrast-color)}; }}
-
-.same-device-title h2 { font-size: inherit; font-weight: normal; margin: 0; }
-.same-device-section { display: flex; flex-direction: column; align-items: center; gap: 16px; }
-
-.wallet-button {
-  background-color: var(--primary-contrast-color);
-  border: none;
+// — Steps —
+.instructions {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+  li { display: flex; align-items: flex-start; gap: 14px; counter-increment: step; }
+}
+.step-icon {
+  flex-shrink: 0;
   border-radius: 8px;
-  padding: 10px 20px;
-  color: var(--primary-color);
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 8px;
+  font-size: 20px;
+  color: var(--primary-contrast-color);
+}
+.step-body { display: flex; flex-direction: column; gap: 2px; text-align: left; }
+.step-title { font-size: 16px; font-weight: 700; &::before { content: counter(step) ". "; } }
+.step-desc { font-size: 14px; line-height: 1.4; opacity: 0.8; }
+
+// — Wallet CTA —
+.wallet-cta {
+  width: 100%;
+  box-sizing: border-box;
+  background-color: #2d58a7;
+  border: none;
+  border-radius: 10px;
+  padding: 14px 20px;
+  color: var(--action-primary-contrast, #fff);
   font-size: 16px;
+  font-weight: 700;
+  font-family: 'Blinker', sans-serif;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
-  margin-top: 20px;
-  font-weight: bold;
-  &:hover { color: var(--secondary-color); transform: scale(1.05); }
-  &:focus-visible { outline: 3px solid var(--primary-color); outline-offset: 3px; box-shadow: 0 0 0 5px var(--primary-contrast-color); }
-  .material-icons { font-size: 20px; }
+  &:hover { background-color: #244a8f; }
+  &:focus-visible { outline: 3px solid var(--primary-contrast-color); outline-offset: 3px; }
+  ion-icon { font-size: 18px; }
 }
+.wallet-hint { font-size: 14px; opacity: 0.75; margin: 0; text-align: center; }
 
+// — Support row —
 .support-card {
-  border: 3px solid var(--primary-contrast-color);
-  padding: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  background-color: #14274a;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  padding: 14px 18px;
   display: flex;
   align-items: center;
-  gap: 15px;
-  font-size: 18px;
-  .help-container { display: flex; align-items: center; gap: 15px; }
-  .help a { font-size: 20px; color: var(--primary-contrast-color); text-decoration: underline; &:hover { color: var(--secondary-contrast-color); } }
+  gap: 12px;
+  font-size: 15px;
+  .support-question { flex: 1; text-align: left; }
+  ion-icon { font-size: 20px; opacity: 0.9; }
+  .support-link {
+    font-weight: 700;
+    text-decoration: underline;
+    color: var(--primary-contrast-color);
+    &:hover { color: var(--secondary-contrast-color); }
+  }
 }
 
 // — Countdown —
@@ -167,17 +205,12 @@
 // — Responsive —
 @media (max-width: 1025px) { .page { display: flex; justify-content: center; align-items: flex-start; } }
 @media (max-width: 768px) {
-  .qr-card-content { flex-direction: column; align-items: center; gap: 0; }
-  .qr-card .qr-container, .qr-card img, .instructions { max-width: 100%; margin-right: 0; }
-  .qr-container { padding-top: 20px; padding-inline: 20px; }
-  .instructions { max-width: 400px; text-align: center; padding-top: 20px; ol { list-style-position: inside; text-align: left; } }
-  .support-card { flex-direction: column; }
-  .instructions ol>li {padding-left: 0;}
-  .instructions .instructions-title { text-align: left; padding-left: 0;} 
-  .card.qr-card {gap: 24px;}
+  .login-card-content { flex-direction: column; align-items: stretch; gap: 24px; }
+  .access-column { width: 100%; min-width: 0; }
+  // On mobile the QR is replaced by a textual instruction (the user reads it on the desktop screen)
+  .qr-block { display: none; }
+  .mobile-instruction { display: block; }
 }
 @media (max-width: 480px) {
-  .card { padding: 10px; }
-  .qr-container { padding-inline: 0; }
-  .qr-card .qr-container, .qr-card img, .instructions { max-width: 100%; }
+  .login-card { padding: 20px; }
 }
