@@ -95,8 +95,15 @@ export class LoginComponent implements OnInit, OnDestroy {
     }
   }
 
+  get walletUrl(): string | null {
+    if (this.tenantService.isCanonical()) {
+      return '/wallet';
+    }
+    return this.tenantService.resolvedEnv()?.wallet ?? null;
+  }
+
   get walletRedirectUrl(): string {
-    const walletUrl = this.theme?.content?.walletUrl;
+    const walletUrl = this.walletUrl;
     if (!this.authRequest || !walletUrl) return '';
     const base = walletUrl.replace(/\/+$/, '');
     return `${base}/protocol/callback?authorization_request=${encodeURIComponent(this.authRequest)}`;

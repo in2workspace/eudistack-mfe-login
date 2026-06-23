@@ -154,8 +154,11 @@ describe('LoginComponent', () => {
   // --- walletRedirectUrl ---
 
   describe('walletRedirectUrl', () => {
-    it('should return empty string when walletUrl is not configured', () => {
-      createComponent({ authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' });
+    it('non-canonical without resolvedEnv: returns empty string', () => {
+      createComponent(
+        { authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' },
+        { isCanonical: false, resolvedEnv: null }
+      );
       fixture.detectChanges();
 
       expect(component.walletRedirectUrl).toBe('');
@@ -164,25 +167,50 @@ describe('LoginComponent', () => {
     it('should return empty string when authRequest is empty', () => {
       createComponent({});
       fixture.detectChanges();
-      theme$.next({ ...baseTheme, content: { ...baseTheme.content, walletUrl: 'https://wallet.example.com' } });
 
       expect(component.walletRedirectUrl).toBe('');
     });
 
-    it('should build wallet URL with authorization_request query parameter', () => {
-      createComponent({ authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc&state=s1' });
+    it('canonical: builds wallet URL using /wallet base', () => {
+      createComponent(
+        { authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc&state=s1' },
+        { isCanonical: true }
+      );
       fixture.detectChanges();
-      theme$.next({ ...baseTheme, content: { ...baseTheme.content, walletUrl: 'https://wallet.example.com' } });
+
+      const expected = '/wallet/protocol/callback?authorization_request=' +
+        encodeURIComponent('https://verifier.example.com/oid4vp/auth?nonce=abc&state=s1');
+      expect(component.walletRedirectUrl).toBe(expected);
+    });
+
+    it('non-canonical: builds wallet URL from resolvedEnv.wallet', () => {
+      const envConfig: CustomDomainEnv = {
+        issuer: 'https://dome.stg.eudistack.net/issuer',
+        verifier: 'https://dome.stg.eudistack.net/verifier',
+        wallet: 'https://wallet.example.com',
+      };
+      createComponent(
+        { authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc&state=s1' },
+        { isCanonical: false, resolvedEnv: envConfig }
+      );
+      fixture.detectChanges();
 
       const expected = 'https://wallet.example.com/protocol/callback?authorization_request=' +
         encodeURIComponent('https://verifier.example.com/oid4vp/auth?nonce=abc&state=s1');
       expect(component.walletRedirectUrl).toBe(expected);
     });
 
-    it('should strip trailing slashes from walletUrl', () => {
-      createComponent({ authRequest: 'https://verifier.example.com/path?q=1' });
+    it('should strip trailing slashes from wallet base URL', () => {
+      const envConfig: CustomDomainEnv = {
+        issuer: 'https://dome.stg.eudistack.net/issuer',
+        verifier: 'https://dome.stg.eudistack.net/verifier',
+        wallet: 'https://wallet.example.com/',
+      };
+      createComponent(
+        { authRequest: 'https://verifier.example.com/path?q=1' },
+        { isCanonical: false, resolvedEnv: envConfig }
+      );
       fixture.detectChanges();
-      theme$.next({ ...baseTheme, content: { ...baseTheme.content, walletUrl: 'https://wallet.example.com/' } });
 
       const expected = 'https://wallet.example.com/protocol/callback?authorization_request=' +
         encodeURIComponent('https://verifier.example.com/path?q=1');
@@ -190,11 +218,10 @@ describe('LoginComponent', () => {
     });
 
     it('should encode special characters in authRequest', () => {
-      createComponent({ authRequest: 'not-a-url' });
+      createComponent({ authRequest: 'not-a-url' }, { isCanonical: true });
       fixture.detectChanges();
-      theme$.next({ ...baseTheme, content: { ...baseTheme.content, walletUrl: 'https://wallet.example.com' } });
 
-      const expected = 'https://wallet.example.com/protocol/callback?authorization_request=' +
+      const expected = '/wallet/protocol/callback?authorization_request=' +
         encodeURIComponent('not-a-url');
       expect(component.walletRedirectUrl).toBe(expected);
     });
@@ -266,24 +293,28 @@ describe('LoginComponent', () => {
 
   describe('openWallet', () => {
     it('should open wallet in new tab when walletRedirectUrl is available', () => {
-      createComponent({ authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' });
+      createComponent(
+        { authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' },
+        { isCanonical: true }
+      );
       fixture.detectChanges();
-      theme$.next({ ...baseTheme, content: { ...baseTheme.content, walletUrl: 'https://wallet.example.com' } });
 
       const mockWindow = {} as Window;
       jest.spyOn(window, 'open').mockReturnValue(mockWindow);
 
       component.openWallet();
 
-      const expectedUrl = 'https://wallet.example.com/protocol/callback?authorization_request=' +
+      const expectedUrl = '/wallet/protocol/callback?authorization_request=' +
         encodeURIComponent('https://verifier.example.com/oid4vp/auth?nonce=abc');
       expect(window.open).toHaveBeenCalledWith(expectedUrl, '_blank');
     });
 
     it('should not throw when popup is blocked (fallback to redirect)', () => {
-      createComponent({ authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' });
+      createComponent(
+        { authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' },
+        { isCanonical: true }
+      );
       fixture.detectChanges();
-      theme$.next({ ...baseTheme, content: { ...baseTheme.content, walletUrl: 'https://wallet.example.com' } });
 
       jest.spyOn(window, 'open').mockReturnValue(null);
 
@@ -363,17 +394,38 @@ describe('LoginComponent', () => {
       expect(copyButton).toBeNull();
     });
 
-    it('should show toggle-section when walletUrl is configured', () => {
-      createComponent({ authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' });
-      theme$.next({ ...baseTheme, content: { ...baseTheme.content, walletUrl: 'https://wallet.example.com' } });
+    it('canonical: shows toggle-section (walletUrl is always /wallet)', () => {
+      createComponent(
+        { authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' },
+        { isCanonical: true }
+      );
       fixture.detectChanges();
 
       const toggle = fixture.nativeElement.querySelector('.toggle-section');
       expect(toggle).toBeTruthy();
     });
 
-    it('should hide toggle-section when walletUrl is not configured', () => {
-      createComponent({ authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' });
+    it('non-canonical with wallet in resolvedEnv: shows toggle-section', () => {
+      const envConfig: CustomDomainEnv = {
+        issuer: 'https://dome.stg.eudistack.net/issuer',
+        verifier: 'https://dome.stg.eudistack.net/verifier',
+        wallet: 'https://wallet.example.com',
+      };
+      createComponent(
+        { authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' },
+        { isCanonical: false, resolvedEnv: envConfig }
+      );
+      fixture.detectChanges();
+
+      const toggle = fixture.nativeElement.querySelector('.toggle-section');
+      expect(toggle).toBeTruthy();
+    });
+
+    it('non-canonical without resolvedEnv: hides toggle-section', () => {
+      createComponent(
+        { authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' },
+        { isCanonical: false, resolvedEnv: null }
+      );
       fixture.detectChanges();
 
       const toggle = fixture.nativeElement.querySelector('.toggle-section');
@@ -381,8 +433,10 @@ describe('LoginComponent', () => {
     });
 
     it('should show wallet button in same-device mode when walletRedirectUrl exists', () => {
-      createComponent({ authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' });
-      theme$.next({ ...baseTheme, content: { ...baseTheme.content, walletUrl: 'https://wallet.example.com' } });
+      createComponent(
+        { authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' },
+        { isCanonical: true }
+      );
       fixture.detectChanges();
 
       component.sameDevice = true;
