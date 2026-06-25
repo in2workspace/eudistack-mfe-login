@@ -66,19 +66,6 @@
                   </qrcode>
                 </div>
                 <span class="access-caption">{{ 'login.qr.scanWith' | translate }}</span>
-
-                <!-- Countdown timer -->
-                <div class="countdown-container" *ngIf="waitingForVerification"
-                     role="timer" [attr.aria-label]="'login.timer.remaining' | translate:{seconds: remainingSeconds}">
-                  <svg class="countdown-svg" viewBox="0 0 52 52" aria-hidden="true">
-                    <circle class="countdown-track" cx="26" cy="26" r="22" fill="none" stroke-width="3" />
-                    <circle class="countdown-progress" cx="26" cy="26" r="22" fill="none" stroke-width="3"
-                            [attr.stroke-dasharray]="2 * 3.1416 * 22"
-                            [attr.stroke-dashoffset]="2 * 3.1416 * 22 * (1 - countdownPercentage / 100)"
-                            transform="rotate(-90 26 26)" />
-                  </svg>
-                  <span class="countdown-text" aria-hidden="true">{{ remainingSeconds }}</span>
-                </div>
               </div>
 
               <!-- Instruction text (shown instead of the QR on mobile via CSS) -->
@@ -119,6 +106,15 @@
                 </span>
               </li>
             </ol>
+          </div>
+
+          <!-- Countdown timer -->
+          <div class="countdown-section" *ngIf="waitingForVerification"
+               role="timer" [attr.aria-label]="'login.timer.remaining' | translate:{seconds: remainingSeconds}">
+            <div class="countdown-bar-track">
+              <div class="countdown-bar-fill" [style.width.%]="countdownPercentage"></div>
+            </div>
+            <span class="countdown-text" aria-hidden="true">{{ 'login.timer.remaining' | translate:{seconds: remainingSeconds} }}</span>
           </div>
         </div>
 

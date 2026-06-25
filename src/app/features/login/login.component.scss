@@ -176,12 +176,11 @@
   }
 }
 
-// — Countdown —
-.countdown-container { position: relative; display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; }
-.countdown-svg { width: 48px; height: 48px; }
-.countdown-track { stroke: rgba(var(--action-primary-rgb, 100, 149, 237), 0.2); }
-.countdown-progress { stroke: var(--action-primary, currentColor); stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
-.countdown-text { position: absolute; font-size: 13px; font-weight: 600; color: var(--primary-contrast-color); }
+// — Countdown (horizontal bar) —
+.countdown-section { width: 100%; text-align: center; margin-top: 24px; }
+.countdown-bar-track { height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.2); overflow: hidden; margin-bottom: 8px; }
+.countdown-bar-fill { height: 100%; border-radius: 2px; background: var(--primary-contrast-color); transition: width 1s linear; }
+.countdown-text { font-size: 13px; font-weight: 600; opacity: 0.85; color: var(--primary-contrast-color); }
 
 // — Success —
 .success-overlay { display: flex; justify-content: center; align-items: center; padding: 40px 12px; }
@@ -206,7 +205,7 @@
 @media (max-width: 1025px) { .page { display: flex; justify-content: center; align-items: flex-start; } }
 @media (max-width: 768px) {
   .login-card-content { flex-direction: column; align-items: stretch; gap: 24px; }
-  .access-column { width: 100%; min-width: 0; }
+.access-column { width: 100%; min-width: 0; }
   // On mobile the QR is replaced by a textual instruction (the user reads it on the desktop screen)
   .qr-block { display: none; }
   .mobile-instruction { display: block; }
