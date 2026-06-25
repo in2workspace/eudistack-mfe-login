@@ -87,6 +87,9 @@
 .access-subcaption { font-size: 14px; opacity: 0.75; }
 .mobile-instruction { display: none; font-size: 15px; line-height: 1.5; text-align: center; margin: 0; }
 
+// Mobile-only access block, rendered outside the card. Hidden on desktop.
+.mobile-access { display: none; }
+
 .copy-button {
   background: none;
   border: 1px solid var(--primary-contrast-color);
@@ -205,11 +208,14 @@
 @media (max-width: 1025px) { .page { display: flex; justify-content: center; align-items: flex-start; } }
 @media (max-width: 768px) {
   .login-card-content { flex-direction: column; align-items: stretch; gap: 24px; }
-.access-column { width: 100%; min-width: 0; }
-  // On mobile the QR is replaced by a textual instruction (the user reads it on the desktop screen)
-  .qr-block { display: none; }
+  // On mobile the QR column (QR + its access code / copy button) is hidden; the
+  // access instruction + code + copy button move OUTSIDE the card via .mobile-access.
+  .access-column { display: none; }
   .mobile-instruction { display: block; }
-  }
+  .mobile-access { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; }
+  // The 10px top margin on the steps only makes sense next to the QR column (desktop)
+  .instructions { margin-top: 0; }
+}
 @media (max-width: 480px) {
   .login-card { padding: 20px; }
 }

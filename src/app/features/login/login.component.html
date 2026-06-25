@@ -48,6 +48,19 @@
         <h1 class="signin-title">{{ 'login.title' | translate:{ name: theme.branding.name } }}</h1>
         <p class="signin-subtitle">{{ 'login.subtitle' | translate:{ name: theme.branding.name } }}</p>
 
+        <!-- Mobile-only access block: instruction + access code + copy button rendered OUTSIDE the card -->
+        <div class="mobile-access">
+          <p class="mobile-instruction">{{ 'login.mobile.instruction' | translate:{ name: theme.branding.name } }}</p>
+          <span class="access-subcaption">{{ 'login.qr.orAccessCode' | translate }}</span>
+          <button class="copy-button"
+                  [class.copy-success]="copied"
+                  [attr.aria-label]="'login.qr.copy' | translate"
+                  (click)="copyAuthRequest()">
+            <ion-icon [name]="copied ? 'checkmark-outline' : 'copy-outline'" aria-hidden="true"></ion-icon>
+            <span>{{ (copied ? 'login.qr.copied' : 'login.qr.copy') | translate }}</span>
+          </button>
+        </div>
+
         <div class="login-card fade-slide-in">
           <div class="login-card-content">
 
@@ -68,10 +81,7 @@
                 <span class="access-caption">{{ 'login.qr.scanWith' | translate }}</span>
               </div>
 
-              <!-- Instruction text (shown instead of the QR on mobile via CSS) -->
-              <p class="mobile-instruction">{{ 'login.mobile.instruction' | translate:{ name: theme.branding.name } }}</p>
-
-              <!-- Access code -->
+              <!-- Access code (desktop: shown under the QR inside the card) -->
               <span class="access-subcaption">{{ 'login.qr.orAccessCode' | translate }}</span>
               <button class="copy-button"
                       [class.copy-success]="copied"
