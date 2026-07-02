@@ -148,6 +148,9 @@
              rel="noopener noreferrer">{{ 'login.support.contact' | translate }}</a>
         </div>
 
+        <!-- Tenant embedded footer (sanitized via DOMPurify — architecture.md §6 / ADR-arch-002/003/005) -->
+        <div *ngIf="footerHtml" class="embedded-footer" [innerHTML]="footerHtml"></div>
+
       </ng-container>
 
       <!-- Timeout message -->
@@ -163,7 +166,3 @@
     </ng-container>
   </div>
 </div>
-
-<!-- Tenant embedded footer (sanitized via DOMPurify — architecture.md §6 / ADR-arch-002/003/005) -->
-<!-- *ngIf removes the node from the DOM entirely — no space reserved when footerHtml is null (FR-07 / AC-02) -->
-<div *ngIf="footerHtml" class="embedded-footer" [innerHTML]="footerHtml"></div>
