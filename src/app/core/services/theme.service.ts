@@ -219,6 +219,16 @@ export class ThemeService {
     root.setProperty('--secondary-color', theme.branding.secondaryColor);
     root.setProperty('--secondary-contrast-color', theme.branding.secondaryContrastColor);
 
+    // Auth/login background gradient (optional — falls back to secondary/primary in CSS)
+    const auth = theme.branding.auth;
+    if (auth?.background) {
+      root.setProperty('--auth-background', auth.background);
+      root.setProperty('--auth-gradient-end', auth.gradientEnd ?? auth.background);
+    } else {
+      root.removeProperty('--auth-background');
+      root.removeProperty('--auth-gradient-end');
+    }
+
     // Layer 2: Semantic tokens (content area)
     const actionPrimary = this.computeActionPrimary(theme.branding.primaryColor);
 
