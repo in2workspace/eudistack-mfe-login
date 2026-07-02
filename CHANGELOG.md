@@ -2,6 +2,10 @@
 
 [Unreleased]
 
+## [3.3.3] - 2026-06-23
+- Resolve issuer and wallet URL dynamically.
+- Update custom-domain.js model.
+
 ### Changed (2026-06-18)
 - Resolved multiple Critical and High severity vulnerabilities in frontend build dependencies.
 

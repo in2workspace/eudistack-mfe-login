@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { SafeHtml } from '@angular/platform-browser';
@@ -7,6 +7,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { Subscription, timer } from 'rxjs';
 import { SseService } from '../../core/services/sse.service';
 import { ThemeService } from '../../core/services/theme.service';
+import { TenantService } from '../../core/services/tenant.service';
 import { Theme } from '../../core/models/theme.model';
 
 const LOGIN_TIMEOUT_MS = 120_000;
@@ -40,6 +41,8 @@ export class LoginComponent implements OnInit, OnDestroy {
   private timerSub?: Subscription;
   private themeSub?: Subscription;
   private countdownInterval?: ReturnType<typeof setInterval>;
+
+  private readonly tenantService = inject(TenantService);
 
   constructor(
     private route: ActivatedRoute,
@@ -85,14 +88,22 @@ export class LoginComponent implements OnInit, OnDestroy {
         this.clearCountdown();
         this.sseSub?.unsubscribe();
         setTimeout(() => {
-          window.location.href = ISSUER_HOME_PATH;
+          const resolvedEnv = this.tenantService.resolvedEnv();
+          window.location.href = resolvedEnv ? `${resolvedEnv.issuer}/home` : ISSUER_HOME_PATH;
         }, 3000);
       });
     }
   }
 
+  get walletUrl(): string | null {
+    if (this.tenantService.isCanonical()) {
+      return '/wallet';
+    }
+    return this.tenantService.resolvedEnv()?.wallet ?? null;
+  }
+
   get walletRedirectUrl(): string {
-    const walletUrl = this.theme?.content?.walletUrl;
+    const walletUrl = this.walletUrl;
     if (!this.authRequest || !walletUrl) return '';
     const base = walletUrl.replace(/\/+$/, '');
     return `${base}/protocol/callback?authorization_request=${encodeURIComponent(this.authRequest)}`;
