@@ -373,10 +373,7 @@ describe('LoginComponent', () => {
       expect(cta).toBeTruthy();
     });
 
-    it('should hide the wallet CTA when walletUrl is not configured', () => {
-      createComponent({ authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' });
-
-    it('non-canonical without resolvedEnv: hides toggle-section', () => {
+    it('should hide the wallet CTA when the wallet URL cannot be resolved (non-canonical, no resolvedEnv)', () => {
       createComponent(
         { authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' },
         { isCanonical: false, resolvedEnv: null }
