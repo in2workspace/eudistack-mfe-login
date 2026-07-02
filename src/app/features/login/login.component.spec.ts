@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testin
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { By, DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { BehaviorSubject, NEVER, Observable } from 'rxjs';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { QRCodeComponent } from 'angularx-qrcode';
 
 import { LoginComponent } from './login.component';
@@ -267,28 +267,6 @@ describe('LoginComponent', () => {
     });
   });
 
-  // --- toggleSameDevice ---
-
-  describe('toggleSameDevice', () => {
-    it('should toggle sameDevice from false to true', () => {
-      createComponent({});
-      fixture.detectChanges();
-
-      expect(component.sameDevice).toBe(false);
-      component.toggleSameDevice();
-      expect(component.sameDevice).toBe(true);
-    });
-
-    it('should toggle sameDevice from true to false', () => {
-      createComponent({});
-      fixture.detectChanges();
-
-      component.sameDevice = true;
-      component.toggleSameDevice();
-      expect(component.sameDevice).toBe(false);
-    });
-  });
-
   // --- openWallet ---
 
   describe('openWallet', () => {
@@ -337,15 +315,12 @@ describe('LoginComponent', () => {
   // --- Template rendering ---
 
   describe('template', () => {
-    it('should show QR code when sameDevice is false', () => {
+    it('should show the QR code', () => {
       createComponent({ authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' });
       fixture.detectChanges();
 
       const qrFrame = fixture.nativeElement.querySelector('.qr-frame');
-      const sameDeviceTitle = fixture.nativeElement.querySelector('.same-device-title');
-
       expect(qrFrame).toBeTruthy();
-      expect(sameDeviceTitle).toBeNull();
     });
 
     it('should render the QR with scanner-friendly settings', () => {
@@ -361,21 +336,27 @@ describe('LoginComponent', () => {
       expect(mockQr.elementType).toBe('svg');
     });
 
-    it('should show same-device view when sameDevice is true', () => {
+    it('should compose the contextual title from branding.name', () => {
+      createComponent({ authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' });
+      const translate = TestBed.inject(TranslateService);
+      translate.setTranslation('en', { 'login.title': 'Sign in to {{name}}' });
+      translate.use('en');
+      theme$.next({ ...baseTheme, branding: { ...baseTheme.branding, name: 'Acme Corp' } });
+      fixture.detectChanges();
+
+      const title = fixture.nativeElement.querySelector('.signin-title');
+      expect(title?.textContent).toContain('Sign in to Acme Corp');
+    });
+
+    it('should render the mobile instruction text (toggled with the QR via CSS)', () => {
       createComponent({ authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' });
       fixture.detectChanges();
 
-      component.sameDevice = true;
-      fixture.detectChanges();
-
-      const qrFrame = fixture.nativeElement.querySelector('.qr-frame');
-      const sameDeviceTitle = fixture.nativeElement.querySelector('.same-device-title');
-
-      expect(qrFrame).toBeNull();
-      expect(sameDeviceTitle).toBeTruthy();
+      const mobileInstruction = fixture.nativeElement.querySelector('.mobile-instruction');
+      expect(mobileInstruction).toBeTruthy();
     });
 
-    it('should show copy button when sameDevice is false', () => {
+    it('should show the copy button', () => {
       createComponent({ authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' });
       fixture.detectChanges();
 
@@ -383,80 +364,37 @@ describe('LoginComponent', () => {
       expect(copyButton).toBeTruthy();
     });
 
-    it('should hide copy button when sameDevice is true', () => {
+    it('should show the wallet CTA when walletUrl is configured', () => {
       createComponent({ authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' });
+      theme$.next({ ...baseTheme, content: { ...baseTheme.content, walletUrl: 'https://wallet.example.com' } });
       fixture.detectChanges();
 
-      component.sameDevice = true;
-      fixture.detectChanges();
-
-      const copyButton = fixture.nativeElement.querySelector('.copy-button');
-      expect(copyButton).toBeNull();
+      const cta = fixture.nativeElement.querySelector('.wallet-cta');
+      expect(cta).toBeTruthy();
     });
 
-    it('canonical: shows toggle-section (walletUrl is always /wallet)', () => {
-      createComponent(
-        { authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' },
-        { isCanonical: true }
-      );
-      fixture.detectChanges();
-
-      const toggle = fixture.nativeElement.querySelector('.toggle-section');
-      expect(toggle).toBeTruthy();
-    });
-
-    it('non-canonical with wallet in resolvedEnv: shows toggle-section', () => {
-      const envConfig: CustomDomainEnv = {
-        issuer: 'https://dome.stg.eudistack.net/issuer',
-        verifier: 'https://dome.stg.eudistack.net/verifier',
-        wallet: 'https://wallet.example.com',
-      };
-      createComponent(
-        { authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' },
-        { isCanonical: false, resolvedEnv: envConfig }
-      );
-      fixture.detectChanges();
-
-      const toggle = fixture.nativeElement.querySelector('.toggle-section');
-      expect(toggle).toBeTruthy();
-    });
-
-    it('non-canonical without resolvedEnv: hides toggle-section', () => {
+    it('should hide the wallet CTA when the wallet URL cannot be resolved (non-canonical, no resolvedEnv)', () => {
       createComponent(
         { authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' },
         { isCanonical: false, resolvedEnv: null }
       );
       fixture.detectChanges();
 
-      const toggle = fixture.nativeElement.querySelector('.toggle-section');
-      expect(toggle).toBeNull();
+      const cta = fixture.nativeElement.querySelector('.wallet-cta');
+      expect(cta).toBeNull();
     });
 
-    it('should show wallet button in same-device mode when walletRedirectUrl exists', () => {
-      createComponent(
-        { authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' },
-        { isCanonical: true }
-      );
-      fixture.detectChanges();
-
-      component.sameDevice = true;
-      fixture.detectChanges();
-
-      const walletButton = fixture.nativeElement.querySelector('.wallet-button');
-      expect(walletButton).toBeTruthy();
-    });
-
-    it('should not show QR card when timed out', () => {
+    it('should not show the login card when timed out', () => {
       createComponent({ authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' });
       fixture.detectChanges();
 
       component.timedOut = true;
       fixture.detectChanges();
 
-      const qrCard = fixture.nativeElement.querySelector('.qr-card');
+      const loginCard = fixture.nativeElement.querySelector('.login-card');
       const timeoutCard = fixture.nativeElement.querySelector('.timeout-card');
 
-      expect(qrCard).toBeNull();
+      expect(loginCard).toBeNull();
       expect(timeoutCard).toBeTruthy();
     });
   });

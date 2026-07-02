@@ -9,6 +9,10 @@ export interface Theme {
     logoUrl: string | null;
     logoDarkUrl?: string | null;
     faviconUrl: string | null;
+    auth?: {
+      background?: string;
+      gradientEnd?: string;
+    };
   };
   content: {
     links: { label: string; url: string }[];

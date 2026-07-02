@@ -42,97 +42,116 @@
       </div>
 
       <!-- QR card -->
-      <div class="card qr-card" *ngIf="!timedOut && !errorMessage && !showSuccess">
-        <div class="qr-card-content" [class.fade-slide-in]="true">
+      <ng-container *ngIf="!timedOut && !errorMessage && !showSuccess">
 
-          <!-- Instructions (left) -->
-          <div class="instructions">
-            <h1 class="instructions-title">{{ 'login.instructions.title' | translate }}</h1>
-            <ol>
-              <li>
-                <span *ngIf="walletUrl; else noWalletLink">
-                  {{ 'login.instructions.step1.before' | translate }}
-                  <a [href]="walletUrl"
-                     target="_blank"
-                     rel="noopener noreferrer">{{ 'login.instructions.step1.link' | translate }}</a>
-                  {{ 'login.instructions.step1.after' | translate }}
-                </span>
-                <ng-template #noWalletLink>
-                  {{ 'login.instructions.step1.noLink' | translate }}
-                </ng-template>
-              </li>
-              <li>{{ 'login.instructions.step2' | translate }}</li>
-              <li>{{ 'login.instructions.step3' | translate }}</li>
-            </ol>
-          </div>
+        <!-- Contextual title built from the tenant identity (branding.name) -->
+        <h1 class="signin-title">{{ 'login.title' | translate:{ name: theme.branding.name } }}</h1>
+        <p class="signin-subtitle">{{ 'login.subtitle' | translate:{ name: theme.branding.name } }}</p>
 
-          <!-- QR container (right) -->
-          <div class="qr-container">
-            <div class="qr-frame" *ngIf="!sameDevice">
-              <qrcode
-                [qrdata]="authRequest"
-                [width]="300"
-                [errorCorrectionLevel]="'H'"
-                [margin]="3"
-                [elementType]="'svg'">
-              </qrcode>
-            </div>
-            <div class="qr-actions" *ngIf="!sameDevice">
-              <span class="qr-title">{{ 'login.qr.hint' | translate }}</span>
+        <!-- Mobile-only access block: instruction + access code + copy button rendered OUTSIDE the card -->
+        <div class="mobile-access">
+          <p class="mobile-instruction">{{ 'login.mobile.instruction' | translate:{ name: theme.branding.name } }}</p>
+          <span class="access-subcaption">{{ 'login.qr.orAccessCode' | translate }}</span>
+          <button class="copy-button"
+                  [class.copy-success]="copied"
+                  [attr.aria-label]="'login.qr.copy' | translate"
+                  (click)="copyAuthRequest()">
+            <ion-icon [name]="copied ? 'checkmark-outline' : 'copy-outline'" aria-hidden="true"></ion-icon>
+            <span>{{ (copied ? 'login.qr.copied' : 'login.qr.copy') | translate }}</span>
+          </button>
+        </div>
+
+        <div class="login-card fade-slide-in">
+          <div class="login-card-content">
+
+            <!-- Access column: QR (desktop) / instruction text (mobile) + access code -->
+            <div class="access-column">
+
+              <!-- QR (hidden on mobile via CSS) -->
+              <div class="qr-block">
+                <div class="qr-frame">
+                  <qrcode
+                    [qrdata]="authRequest"
+                    [width]="300"
+                    [errorCorrectionLevel]="'H'"
+                    [margin]="3"
+                    [elementType]="'svg'">
+                  </qrcode>
+                </div>
+                <span class="access-caption">{{ 'login.qr.scanWith' | translate }}</span>
+              </div>
+
+              <!-- Access code (desktop: shown under the QR inside the card) -->
+              <span class="access-subcaption">{{ 'login.qr.orAccessCode' | translate }}</span>
               <button class="copy-button"
                       [class.copy-success]="copied"
                       [attr.aria-label]="'login.qr.copy' | translate"
                       (click)="copyAuthRequest()">
-                <span class="material-icons" aria-hidden="true">{{ copied ? 'check' : 'content_copy' }}</span>
+                <ion-icon [name]="copied ? 'checkmark-outline' : 'copy-outline'" aria-hidden="true"></ion-icon>
                 <span>{{ (copied ? 'login.qr.copied' : 'login.qr.copy') | translate }}</span>
               </button>
             </div>
 
-            <!-- Countdown timer -->
-            <div class="countdown-container" *ngIf="waitingForVerification && !sameDevice"
-                 role="timer" [attr.aria-label]="'login.timer.remaining' | translate:{seconds: remainingSeconds}">
-              <svg class="countdown-svg" viewBox="0 0 52 52" aria-hidden="true">
-                <circle class="countdown-track" cx="26" cy="26" r="22" fill="none" stroke-width="3" />
-                <circle class="countdown-progress" cx="26" cy="26" r="22" fill="none" stroke-width="3"
-                        [attr.stroke-dasharray]="2 * 3.1416 * 22"
-                        [attr.stroke-dashoffset]="2 * 3.1416 * 22 * (1 - countdownPercentage / 100)"
-                        transform="rotate(-90 26 26)" />
-              </svg>
-              <span class="countdown-text" aria-hidden="true">{{ remainingSeconds }}</span>
-            </div>
-
-            <div class="same-device-section fade-slide-in" *ngIf="sameDevice">
-              <div class="same-device-title">
-                <h2>{{ 'login.sameDevice.title' | translate }}</h2>
-              </div>
-              <button class="wallet-button"
-                      *ngIf="walletRedirectUrl"
-                      [attr.aria-label]="'login.sameDevice.wallet' | translate"
-                      (click)="openWallet()">
-                <span class="material-icons" aria-hidden="true">account_balance_wallet</span>
-                {{ 'login.sameDevice.wallet' | translate }}
-              </button>
-            </div>
+            <!-- Instructions -->
+            <ol class="instructions">
+              <li>
+                <ion-icon name="wallet-outline" class="step-icon" aria-hidden="true"></ion-icon>
+                <span class="step-body">
+                  <span class="step-title">{{ 'login.instructions.step1.title' | translate }}</span>
+                  <span class="step-desc">{{ 'login.instructions.step1.desc' | translate }}</span>
+                </span>
+              </li>
+              <li>
+                <ion-icon name="qr-code-outline" class="step-icon" aria-hidden="true"></ion-icon>
+                <span class="step-body">
+                  <span class="step-title">{{ 'login.instructions.step2.title' | translate }}</span>
+                  <span class="step-desc">{{ 'login.instructions.step2.desc' | translate }}</span>
+                </span>
+              </li>
+              <li>
+                <ion-icon name="person-outline" class="step-icon" aria-hidden="true"></ion-icon>
+                <span class="step-body">
+                  <span class="step-title">{{ 'login.instructions.step3.title' | translate }}</span>
+                  <span class="step-desc">{{ 'login.instructions.step3.desc' | translate }}</span>
+                </span>
+              </li>
+            </ol>
           </div>
 
+          <!-- Countdown timer -->
+          <div class="countdown-section" *ngIf="waitingForVerification"
+               role="timer" [attr.aria-label]="'login.timer.remaining' | translate:{seconds: remainingSeconds}">
+            <div class="countdown-bar-track">
+              <div class="countdown-bar-fill" [style.width.%]="countdownPercentage"></div>
+            </div>
+            <span class="countdown-text" aria-hidden="true">{{ 'login.timer.remaining' | translate:{seconds: remainingSeconds} }}</span>
+          </div>
         </div>
 
-        <!-- Same-device / QR toggle -->
-        <div class="toggle-section" *ngIf="walletUrl">
-          <button *ngIf="!sameDevice" class="toggle-button" (click)="toggleSameDevice()">
-            {{ 'login.sameDevice.switch' | translate }}
-          </button>
-          <button *ngIf="sameDevice" class="toggle-button" (click)="toggleSameDevice()">
-            {{ 'login.qr.switch' | translate }}
-          </button>
-        </div>
+        <!-- Primary CTA: open the digital wallet on this device -->
+        <button class="wallet-cta"
+                *ngIf="walletRedirectUrl"
+                [attr.aria-label]="'login.wallet.cta' | translate"
+                (click)="openWallet()">
+          <span>{{ 'login.wallet.cta' | translate }}</span>
+          <ion-icon name="open-outline" aria-hidden="true"></ion-icon>
+        </button>
+        <p class="wallet-hint" *ngIf="walletRedirectUrl">{{ 'login.wallet.hint' | translate }}</p>
 
-        <div class="guides-section" *ngIf="theme.content.knowledgeBaseUrl">
-          <a [href]="theme.content.knowledgeBaseUrl"
+        <!-- Support card -->
+        <div class="support-card" *ngIf="theme.content.supportUrl">
+          <ion-icon name="mail-outline" aria-hidden="true"></ion-icon>
+          <span class="support-question">{{ 'login.support.needHelp' | translate }}</span>
+          <a class="support-link"
+             [href]="theme.content.supportUrl"
              target="_blank"
-             rel="noopener noreferrer">{{ 'login.support.guides' | translate }}</a>
+             rel="noopener noreferrer">{{ 'login.support.contact' | translate }}</a>
         </div>
-      </div>
+
+        <!-- Tenant embedded footer (sanitized via DOMPurify — architecture.md §6 / ADR-arch-002/003/005) -->
+        <div *ngIf="footerHtml" class="embedded-footer" [innerHTML]="footerHtml"></div>
+
+      </ng-container>
 
       <!-- Timeout message -->
       <div class="card timeout-card" *ngIf="timedOut" role="alert">
@@ -144,24 +163,6 @@
         <p>{{ errorMessage | translate }}</p>
       </div>
 
-      <!-- Support card -->
-      <div class="support-card" *ngIf="theme.content.supportUrl">
-        <span>{{ 'login.support.question' | translate }}</span>
-        <div class="help-container">
-          <span class="material-icons" aria-hidden="true">build</span>
-          <span class="help">
-            {{ 'login.support.before' | translate }}
-            <a [href]="theme.content.supportUrl"
-               target="_blank"
-               rel="noopener noreferrer">{{ 'login.support.link' | translate }}</a>
-          </span>
-        </div>
-      </div>
-
     </ng-container>
   </div>
 </div>
-
-<!-- Tenant embedded footer (sanitized via DOMPurify — architecture.md §6 / ADR-arch-002/003/005) -->
-<!-- *ngIf removes the node from the DOM entirely — no space reserved when footerHtml is null (FR-07 / AC-02) -->
-<div *ngIf="footerHtml" class="embedded-footer" [innerHTML]="footerHtml"></div>
