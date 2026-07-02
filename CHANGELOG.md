@@ -2,6 +2,16 @@
 
 [Unreleased]
 
+## [3.3.4] - 2026-07-02
+
+### Changed (feature/mfe-login-redesign)
+
+- **Full redesign of the Verifier login screen** (new `login-card` layout, wallet CTA, support row, updated typography and translations).
+- **Migrated icons from Material Icons to Ionicons** (registered via `ionicons/loader` + `addIcons`).
+- **New horizontal countdown bar** replacing the circular timer.
+- **Mobile layout** reworked (instruction, access code and copy button moved outside the card).
+- **Per-tenant auth background gradient** via `branding.auth` tokens (`--auth-background` / `--auth-gradient-end`).
+
 ## [3.3.3] - 2026-06-23
 - Resolve issuer and wallet URL dynamically.
 - Update custom-domain.js model.
