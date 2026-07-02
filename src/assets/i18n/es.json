@@ -17,7 +17,7 @@
   "login.wallet.cta": "Abrir Wallet Digital para iniciar sesión",
   "login.wallet.hint": "Después escanea el código QR o pega el código de acceso",
   "login.support.needHelp": "¿Necesitas ayuda para iniciar sesión?",
-  "login.support.contact": "Contactar con soporte",
+  "login.support.contact": "Visita nuestros recursos de soporte",
   "login.timeout": "Sesión expirada. Por favor, inténtalo de nuevo.",
   "login.verified": "¡Verificado!",
   "login.error": "Se ha producido un error durante el inicio de sesión.",

@@ -17,7 +17,7 @@
   "login.wallet.cta": "Open Digital Wallet to sign in",
   "login.wallet.hint": "Then scan the QR code or paste the access code",
   "login.support.needHelp": "Need help to sign in?",
-  "login.support.contact": "Contact support",
+  "login.support.contact": "Access our support resources",
   "login.timeout": "Session expired. Please try again.",
   "login.verified": "Verified!",
   "login.error": "An error occurred during login.",
