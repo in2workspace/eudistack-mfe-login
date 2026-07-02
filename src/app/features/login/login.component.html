@@ -95,21 +95,21 @@
             <!-- Instructions -->
             <ol class="instructions">
               <li>
-                <ion-icon name="wallet-outline" class="step-icon"></ion-icon>
+                <ion-icon name="wallet-outline" class="step-icon" aria-hidden="true"></ion-icon>
                 <span class="step-body">
                   <span class="step-title">{{ 'login.instructions.step1.title' | translate }}</span>
                   <span class="step-desc">{{ 'login.instructions.step1.desc' | translate }}</span>
                 </span>
               </li>
               <li>
-                <ion-icon name="qr-code-outline" class="step-icon"></ion-icon>
+                <ion-icon name="qr-code-outline" class="step-icon" aria-hidden="true"></ion-icon>
                 <span class="step-body">
                   <span class="step-title">{{ 'login.instructions.step2.title' | translate }}</span>
                   <span class="step-desc">{{ 'login.instructions.step2.desc' | translate }}</span>
                 </span>
               </li>
               <li>
-                <ion-icon name="person-outline" class="step-icon"></ion-icon>
+                <ion-icon name="person-outline" class="step-icon" aria-hidden="true"></ion-icon>
                 <span class="step-body">
                   <span class="step-title">{{ 'login.instructions.step3.title' | translate }}</span>
                   <span class="step-desc">{{ 'login.instructions.step3.desc' | translate }}</span>
@@ -134,13 +134,13 @@
                 [attr.aria-label]="'login.wallet.cta' | translate"
                 (click)="openWallet()">
           <span>{{ 'login.wallet.cta' | translate }}</span>
-          <ion-icon name="open-outline"></ion-icon>
+          <ion-icon name="open-outline" aria-hidden="true"></ion-icon>
         </button>
         <p class="wallet-hint" *ngIf="walletRedirectUrl">{{ 'login.wallet.hint' | translate }}</p>
 
         <!-- Support card -->
         <div class="support-card" *ngIf="theme.content.supportUrl">
-          <ion-icon name="mail-outline"></ion-icon>
+          <ion-icon name="mail-outline" aria-hidden="true"></ion-icon>
           <span class="support-question">{{ 'login.support.needHelp' | translate }}</span>
           <a class="support-link"
              [href]="theme.content.supportUrl"
