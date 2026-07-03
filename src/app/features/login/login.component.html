@@ -147,10 +147,6 @@
              target="_blank"
              rel="noopener noreferrer">{{ 'login.support.contact' | translate }}</a>
         </div>
-
-        <!-- Tenant embedded footer (sanitized via DOMPurify — architecture.md §6 / ADR-arch-002/003/005) -->
-        <div *ngIf="footerHtml" class="embedded-footer" [innerHTML]="footerHtml"></div>
-
       </ng-container>
 
       <!-- Timeout message -->
@@ -166,3 +162,6 @@
     </ng-container>
   </div>
 </div>
+
+<!-- Tenant embedded footer (sanitized via DOMPurify — architecture.md §6 / ADR-arch-002/003/005) -->
+<div *ngIf="footerHtml && !timedOut && !errorMessage && !showSuccess" class="embedded-footer" [innerHTML]="footerHtml"></div>
