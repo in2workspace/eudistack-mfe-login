@@ -179,6 +179,7 @@
     color: var(--primary-contrast-color);
     &:hover { color: var(--secondary-contrast-color); }
   }
+  .support-contact-mobile { display: none; }
 }
 
 // — Countdown (horizontal bar) —
@@ -216,6 +217,9 @@
   .mobile-instruction { display: block; }
   .mobile-access { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; }
   .instructions { margin-top: 0; }
+  // Swap the support link wording for the shorter mobile variant.
+  .support-card .support-contact-desktop { display: none; }
+  .support-card .support-contact-mobile { display: inline; }
 }
 @media (max-width: 480px) {
   .login-card { padding: 20px; }

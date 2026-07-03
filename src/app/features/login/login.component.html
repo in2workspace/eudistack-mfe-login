@@ -145,7 +145,11 @@
           <a class="support-link"
              [href]="theme.content.supportUrl"
              target="_blank"
-             rel="noopener noreferrer">{{ 'login.support.contact' | translate }}</a>
+             rel="noopener noreferrer">
+            <!-- Wording differs by viewport; toggled via CSS to match the QR/mobile pattern -->
+            <span class="support-contact-desktop">{{ 'login.support.contact.desktop' | translate }}</span>
+            <span class="support-contact-mobile">{{ 'login.support.contact.mobile' | translate }}</span>
+          </a>
         </div>
       </ng-container>
 
