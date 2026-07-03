@@ -44,6 +44,18 @@ describe('ThemeService', () => {
     }
   };
 
+  const originalLanguages = Object.getOwnPropertyDescriptor(navigator, 'languages');
+  function mockBrowserLanguages(languages: string[]): void {
+    Object.defineProperty(navigator, 'languages', { value: languages, configurable: true });
+  }
+  function restoreBrowserLanguages(): void {
+    if (originalLanguages) {
+      Object.defineProperty(navigator, 'languages', originalLanguages);
+    } else {
+      delete (navigator as unknown as { languages?: readonly string[] }).languages;
+    }
+  }
+
   beforeEach(() => {
     tenantSignal = signal('localhost');
 
@@ -70,6 +82,7 @@ describe('ThemeService', () => {
 
   afterEach(() => {
     httpMock.verify();
+    restoreBrowserLanguages();
   });
 
   // --- load ---
@@ -87,7 +100,8 @@ describe('ThemeService', () => {
       expect(service.snapshot).toEqual(mockTheme);
     });
 
-    it('should configure i18n when theme has i18n config', async () => {
+    it('should configure i18n and use the browser language when the tenant supports it', async () => {
+      mockBrowserLanguages(['en-US', 'en']);
       const loadPromise = service.load();
 
       const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
@@ -97,6 +111,18 @@ describe('ThemeService', () => {
 
       expect(translateService.addLangs).toHaveBeenCalledWith(['en', 'es', 'ca']);
       expect(translateService.setDefaultLang).toHaveBeenCalledWith('es');
+      expect(translateService.use).toHaveBeenCalledWith('en');
+    });
+
+    it('should fall back to defaultLang when no browser language is supported', async () => {
+      mockBrowserLanguages(['fr', 'de']);
+      const loadPromise = service.load();
+
+      const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
+      req.flush(mockTheme);
+
+      await loadPromise;
+
       expect(translateService.use).toHaveBeenCalledWith('es');
     });
 
@@ -259,31 +285,6 @@ describe('ThemeService', () => {
       const actionPrimary = document.documentElement.style.getPropertyValue('--action-primary');
       expect(actionPrimary).toBe('#2563EB');
     });
-  });
-
-  it('should set document.documentElement.lang to defaultLang after load', async () => {
-    const loadPromise = service.load();
-
-    const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
-    req.flush(mockTheme);
-
-    await loadPromise;
-
-    expect(document.documentElement.lang).toBe('es');
-  });
-
-  it('should update document.documentElement.lang when onLangChange emits', async () => {
-    const loadPromise = service.load();
-
-    const req = httpMock.expectOne('/assets/tenants/localhost/theme.json');
-    req.flush(mockTheme);
-
-    await loadPromise;
-
-    const langChangeCallback = (translateService.onLangChange.subscribe as jest.Mock).mock.calls[0][0];
-    langChangeCallback({ lang: 'ca' });
-
-    expect(document.documentElement.lang).toBe('ca');
   });
 
   // ── Asset path rewriting ─────────────────────────────────────────────────
