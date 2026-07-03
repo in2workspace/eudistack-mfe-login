@@ -330,7 +330,7 @@ describe('LoginComponent', () => {
       const mockQr = fixture.debugElement.query(By.directive(MockQRCodeComponent))?.componentInstance as MockQRCodeComponent;
 
       expect(mockQr.qrdata).toBe('https://verifier.example.com/oid4vp/auth?nonce=abc');
-      expect(mockQr.width).toBe(300);
+      expect(mockQr.width).toBe(220);
       expect(mockQr.errorCorrectionLevel).toBe('H');
       expect(mockQr.margin).toBe(3);
       expect(mockQr.elementType).toBe('svg');
