@@ -118,18 +118,28 @@ export class ThemeService {
       if (theme.i18n) {
         this.translate.addLangs(theme.i18n.available);
         this.translate.setDefaultLang(theme.i18n.defaultLang);
-        this.translate.use(theme.i18n.defaultLang);
-        // WCAG 3.1.1 — keep HTML lang attribute in sync with active language
-        document.documentElement.lang = theme.i18n.defaultLang;
-        this.langChangeSub?.unsubscribe();
-        this.langChangeSub = this.translate.onLangChange.subscribe(event => {
-          document.documentElement.lang = event.lang;
-        });
+
+        const browserLang = this.detectBrowserLanguage(theme.i18n.available);
+        this.translate.use(browserLang ?? theme.i18n.defaultLang);
       }
     } catch (error) {
       console.error('ThemeService: failed to load theme configuration', error);
       this.applyDefault();
     }
+  }
+
+  private detectBrowserLanguage(available: string[]): string | undefined {
+    const browserLanguages = navigator.languages?.length
+      ? navigator.languages
+      : [navigator.language];
+
+    for (const lang of browserLanguages) {
+      const shortLang = lang.split('-')[0];
+      if (available.includes(shortLang)) {
+        return shortLang;
+      }
+    }
+    return undefined;
   }
 
   observeTheme(): Observable<Theme | null> {
