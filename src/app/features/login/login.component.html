@@ -72,7 +72,7 @@
                 <div class="qr-frame">
                   <qrcode
                     [qrdata]="authRequest"
-                    [width]="300"
+                    [width]="220"
                     [errorCorrectionLevel]="'H'"
                     [margin]="3"
                     [elementType]="'svg'">
@@ -145,12 +145,12 @@
           <a class="support-link"
              [href]="theme.content.supportUrl"
              target="_blank"
-             rel="noopener noreferrer">{{ 'login.support.contact' | translate }}</a>
+             rel="noopener noreferrer">
+            <!-- Wording differs by viewport; toggled via CSS to match the QR/mobile pattern -->
+            <span class="support-contact-desktop">{{ 'login.support.contact.desktop' | translate }}</span>
+            <span class="support-contact-mobile">{{ 'login.support.contact.mobile' | translate }}</span>
+          </a>
         </div>
-
-        <!-- Tenant embedded footer (sanitized via DOMPurify — architecture.md §6 / ADR-arch-002/003/005) -->
-        <div *ngIf="footerHtml" class="embedded-footer" [innerHTML]="footerHtml"></div>
-
       </ng-container>
 
       <!-- Timeout message -->
@@ -166,3 +166,6 @@
     </ng-container>
   </div>
 </div>
+
+<!-- Tenant embedded footer (sanitized via DOMPurify — architecture.md §6 / ADR-arch-002/003/005) -->
+<div *ngIf="footerHtml && !timedOut && !errorMessage && !showSuccess" class="embedded-footer" [innerHTML]="footerHtml"></div>

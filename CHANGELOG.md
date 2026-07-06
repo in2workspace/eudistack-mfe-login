@@ -2,6 +2,14 @@
 
 [Unreleased]
 
+## [3.3.5] - 2026-07-03
+
+### Changed (2026-07-03)
+
+- **i18n follows the browser language** when the tenant supports it (`i18n.available`), falling back to `defaultLang`.
+- **Support link wording adapts to the viewport** (`login.support.contact.desktop` / `.mobile`).
+- **Login card, wallet CTA and support row use per-tenant brand variables** (`--secondary-color` / `--primary-color`) instead of fixed colors.
+
 ## [3.3.4] - 2026-07-02
 
 ### Changed (feature/mfe-login-redesign)
