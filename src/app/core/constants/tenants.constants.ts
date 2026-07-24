@@ -6,6 +6,7 @@ export const KNOWN_TENANTS: readonly string[] = [
   'eudistack',
   'localhost',
   'cgcom',
+  'calidalia',
 ];
 
 /**
