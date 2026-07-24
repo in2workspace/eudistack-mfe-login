@@ -2,6 +2,12 @@
 
 [Unreleased]
 
+## [3.3.6] - 2026-07-24
+
+### Added
+
+- **Calidalia tenant**: added `'calidalia'` to `KNOWN_TENANTS` (`tenants.constants.ts`) so the tenant guard resolves the hostname instead of redirecting to `/tenant-not-found`.
+
 ## [3.3.5] - 2026-07-03
 
 ### Changed (2026-07-03)
