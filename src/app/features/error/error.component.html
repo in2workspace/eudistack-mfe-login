@@ -5,8 +5,8 @@
     <h1>{{ 'error.title' | translate }}</h1>
     <p class="description">{{ 'error.message' | translate }}</p>
 
-    <div class="details" *ngIf="errorCode || errorMessage">
-      <h2>{{ 'error.details' | translate }}</h2>
+    <section class="details" *ngIf="errorCode || errorMessage" aria-labelledby="error-details-heading">
+      <h2 id="error-details-heading">{{ 'error.details' | translate }}</h2>
 
       <div class="detail-row" *ngIf="errorCode">
         <span class="label">{{ 'error.code' | translate }}:</span>
@@ -27,7 +27,7 @@
         <span class="label">{{ 'error.clientUrl' | translate }}:</span>
         <span class="value url">{{ clientUrl }}</span>
       </div>
-    </div>
+    </section>
 
     <div class="actions">
       <button class="copy-button"

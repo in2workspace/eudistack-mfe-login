@@ -116,6 +116,11 @@ h1 {
     background: var(--action-primary);
     color: var(--action-primary-contrast);
   }
+
+  &:focus-visible {
+    outline: 3px solid var(--action-primary);
+    outline-offset: 2px;
+  }
 }
 
 .back-button {
@@ -130,6 +135,11 @@ h1 {
 
   &:hover {
     opacity: 0.85;
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--action-primary);
+    outline-offset: 2px;
   }
 }
 
