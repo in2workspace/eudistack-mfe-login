@@ -40,3 +40,6 @@ testem.log
 # System files
 .DS_Store
 Thumbs.db
+
+# Generated inventory (CycloneDX SBOM) — built in CI, never committed
+/build/sbom

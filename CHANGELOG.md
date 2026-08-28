@@ -2,6 +2,16 @@
 
 [Unreleased]
 
+## [3.3.7] - 2026-08-27
+
+### Added
+
+- **EUD-38 — inventario CycloneDX y gate de licencias**: el repositorio genera su inventario CycloneDX 1.6 en cada construcción, lo publica como activo de cada release (`sbom-v<version>.cdx.json`, comprobando que la versión del inventario coincide con la del artefacto) y evalúa cada pull request contra la lista de licencias admitidas (`.github/license-policy.json`, transcripción de `conv-quality-security-gates.md` §16.1). El evaluador y su suite de tests viven en `.github/scripts/`, sin dependencias de terceros y sin depender de ningún otro repositorio. Guía operativa: `docs/_shared/guides/license-gate-and-sbom.md` en `eudistack-platform-dev`.
+
+### Changed
+
+- **Generación del inventario fijada y reproducible**: `@cyclonedx/cyclonedx-npm` pasa a ser `devDependency` con versión exacta y se ejecuta mediante `npm run sbom` después de `npm ci`, en lugar de descargarse con `npx --yes` en tiempo de construcción. Los componentes de desarrollo se mantienen marcados en el inventario en vez de omitirse: el gate ya distingue por ámbito y bloquea solo lo que se distribuye en ejecución.
+
 ## [3.3.6] - 2026-07-24
 
 ### Added
