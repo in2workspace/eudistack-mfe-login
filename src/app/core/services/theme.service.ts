@@ -1,8 +1,50 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { TranslateService } from '@ngx-translate/core';
-import { BehaviorSubject, Observable, firstValueFrom } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, firstValueFrom } from 'rxjs';
+import { timeout } from 'rxjs/operators';
+import DOMPurify from 'dompurify';
 import { Theme } from '../models/theme.model';
+import { TenantService } from './tenant.service';
+import {
+  EMBED_ALLOWED_TAGS,
+  EMBED_ALLOWED_ATTR,
+  EMBED_ALLOWED_URI_REGEXP,
+} from '../constants/embed-sanitizer.constants';
+
+/**
+ * Built-in EUDIStack fallback theme applied when the per-tenant theme.json
+ * cannot be loaded (network error, 404, timeout). Mirrors src/assets/theme.json
+ * as a TypeScript constant to avoid a second HTTP round-trip on failure.
+ * Fields without tenant embed codes are explicitly null (AC-04 backward-compat).
+ */
+const DEFAULT_THEME: Theme = {
+  tenantDomain: 'EUDISTACK',
+  branding: {
+    name: 'EUDIStack',
+    primaryColor: '#0F2B5B',
+    primaryContrastColor: '#ffffff',
+    secondaryColor: '#00BFA6',
+    secondaryContrastColor: '#ffffff',
+    logoUrl: 'assets/logos/logo.svg',
+    faviconUrl: 'assets/favicon.svg',
+  },
+  content: {
+    links: [],
+    footer: null,
+    headerEmbedCode: null,
+    footerEmbedCode: null,
+    knowledgeBaseUrl: 'https://docs.eudistack.net/',
+    onboardingUrl: null,
+    supportUrl: null,
+    walletUrl: '/wallet',
+  },
+  i18n: {
+    defaultLang: 'es',
+    available: ['en', 'es'],
+  },
+};
 
 /**
  * Semantic design tokens — neutral, brand-independent values for content areas.
@@ -53,33 +95,51 @@ const SEMANTIC_DEFAULTS: Record<string, string> = {
 @Injectable({ providedIn: 'root' })
 export class ThemeService {
   private theme$ = new BehaviorSubject<Theme | null>(null);
+  private langChangeSub?: Subscription;
 
   constructor(
     private http: HttpClient,
-    private translate: TranslateService
+    private translate: TranslateService,
+    private tenantService: TenantService,
+    private domSanitizer: DomSanitizer
   ) {}
 
   async load(): Promise<void> {
+    const tenant = this.tenantService.tenant();
+    const assetsBase = `/assets/tenants/${tenant}`;
     try {
-      const theme = await firstValueFrom(this.http.get<Theme>('assets/theme.json'));
+      const theme = await firstValueFrom(
+        this.http.get<Theme>(`${assetsBase}/theme.json`).pipe(timeout(800))
+      );
+      this.rewriteAssetPaths(theme, assetsBase);
       this.theme$.next(theme);
       this.applyTheme(theme);
 
       if (theme.i18n) {
         this.translate.addLangs(theme.i18n.available);
         this.translate.setDefaultLang(theme.i18n.defaultLang);
-        this.translate.use(theme.i18n.defaultLang);
-        // WCAG 3.1.1 — keep HTML lang attribute in sync with active language
-        document.documentElement.lang = theme.i18n.defaultLang;
-        this.translate.onLangChange.subscribe(event => {
-          document.documentElement.lang = event.lang;
-        });
+
+        const browserLang = this.detectBrowserLanguage(theme.i18n.available);
+        this.translate.use(browserLang ?? theme.i18n.defaultLang);
       }
     } catch (error) {
       console.error('ThemeService: failed to load theme configuration', error);
-      this.theme$.error(error);
-      throw error;
+      this.applyDefault();
     }
+  }
+
+  private detectBrowserLanguage(available: string[]): string | undefined {
+    const browserLanguages = navigator.languages?.length
+      ? navigator.languages
+      : [navigator.language];
+
+    for (const lang of browserLanguages) {
+      const shortLang = lang.split('-')[0];
+      if (available.includes(shortLang)) {
+        return shortLang;
+      }
+    }
+    return undefined;
   }
 
   observeTheme(): Observable<Theme | null> {
@@ -90,12 +150,74 @@ export class ThemeService {
     return this.theme$.value;
   }
 
+  /**
+   * Sanitizes tenant-provided embed HTML (header or footer) using DOMPurify with
+   * the canonical allow-list from architecture.md §6.
+   *
+   * Returns null when: input is falsy, or all content is stripped by DOMPurify
+   * (EC-01 — only prohibited tags → empty result treated as absent).
+   *
+   * The returned SafeHtml is safe for `[innerHTML]` binding (ADR-arch-003):
+   * DOMPurify cleans first; bypassSecurityTrustHtml wraps the clean result only.
+   */
+  sanitizeEmbedHtml(raw: string | null | undefined): SafeHtml | null {
+    if (!raw) return null;
+    const clean = DOMPurify.sanitize(raw, {
+      ALLOWED_TAGS: EMBED_ALLOWED_TAGS,
+      ALLOWED_ATTR: EMBED_ALLOWED_ATTR,
+      ALLOWED_URI_REGEXP: EMBED_ALLOWED_URI_REGEXP,
+    });
+    if (!clean.trim()) return null;
+    const theme = this.theme$.value;
+    const resolved = clean
+      .replace(/\{logoUrl\}/g, theme?.branding?.logoUrl ?? '')
+      .replace(/\{logoDarkUrl\}/g, theme?.branding?.logoDarkUrl ?? theme?.branding?.logoUrl ?? '');
+    return this.domSanitizer.bypassSecurityTrustHtml(resolved);
+  }
+
+  /**
+   * Returns the sanitized footer embed HTML for the current theme snapshot.
+   *
+   * Delegates to `sanitizeEmbedHtml()` — same DOMPurify + allow-list + bypass
+   * pipeline used by the header embed (ADR-arch-002 / ADR-arch-003 / AD-1).
+   * Returns null when: footerEmbedCode is absent/null, or all content is stripped
+   * by DOMPurify (EC-01), or the field is undefined (EC-04).
+   *
+   * Note: for reactive contexts (ngOnInit subscription), call sanitizeEmbedHtml()
+   * directly with the emitted theme value. This getter is for snapshot access.
+   */
+  get sanitizedFooter(): SafeHtml | null {
+    return this.sanitizeEmbedHtml(this.theme$.value?.content?.footerEmbedCode);
+  }
+
   get tenantDomain(): string {
     const theme = this.theme$.value;
     if (!theme) {
       throw new Error('ThemeService: theme not loaded yet. Call load() before accessing tenantDomain.');
     }
     return theme.tenantDomain;
+  }
+
+  private rewriteAssetPaths(theme: Theme, assetsBase: string): void {
+    const rewrite = (path: string | null | undefined): string | null => {
+      if (!path) return null;
+      if (path.startsWith('/assets/tenants/')) return path;
+      const normalized = path.startsWith('/') ? path.slice(1) : path;
+      if (normalized.startsWith('assets/tenant/')) {
+        return `${assetsBase}/${normalized.slice('assets/tenant/'.length)}`;
+      }
+      return path;
+    };
+    if (theme.branding) {
+      theme.branding.logoUrl = rewrite(theme.branding.logoUrl) as string;
+      theme.branding.logoDarkUrl = rewrite(theme.branding.logoDarkUrl);
+      theme.branding.faviconUrl = rewrite(theme.branding.faviconUrl) as string;
+    }
+  }
+
+  private applyDefault(): void {
+    this.applyTheme(DEFAULT_THEME);
+    this.theme$.next(DEFAULT_THEME);
   }
 
   private applyTheme(theme: Theme): void {
@@ -106,6 +228,16 @@ export class ThemeService {
     root.setProperty('--primary-contrast-color', theme.branding.primaryContrastColor);
     root.setProperty('--secondary-color', theme.branding.secondaryColor);
     root.setProperty('--secondary-contrast-color', theme.branding.secondaryContrastColor);
+
+    // Auth/login background gradient (optional — falls back to secondary/primary in CSS)
+    const auth = theme.branding.auth;
+    if (auth?.background) {
+      root.setProperty('--auth-background', auth.background);
+      root.setProperty('--auth-gradient-end', auth.gradientEnd ?? auth.background);
+    } else {
+      root.removeProperty('--auth-background');
+      root.removeProperty('--auth-gradient-end');
+    }
 
     // Layer 2: Semantic tokens (content area)
     const actionPrimary = this.computeActionPrimary(theme.branding.primaryColor);

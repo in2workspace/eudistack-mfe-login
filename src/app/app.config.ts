@@ -7,14 +7,21 @@ import { HttpClient } from '@angular/common/http';
 import { importProvidersFrom } from '@angular/core';
 
 import { routes } from './app.routes';
+import { TenantService } from './core/services/tenant.service';
 import { ThemeService } from './core/services/theme.service';
 
 function httpLoaderFactory(http: HttpClient): TranslateHttpLoader {
   return new TranslateHttpLoader(http, './assets/i18n/', '.json');
 }
 
-function initializeTheme(themeService: ThemeService): () => Promise<void> {
-  return () => themeService.load();
+function initializeApp(
+  tenantService: TenantService,
+  themeService: ThemeService
+): () => Promise<void> {
+  return async () => {
+    await tenantService.resolve();
+    await themeService.load();
+  };
 }
 
 export const appConfig: ApplicationConfig = {
@@ -34,8 +41,8 @@ export const appConfig: ApplicationConfig = {
     ),
     {
       provide: APP_INITIALIZER,
-      useFactory: initializeTheme,
-      deps: [ThemeService],
+      useFactory: initializeApp,
+      deps: [TenantService, ThemeService],
       multi: true
     }
   ]
