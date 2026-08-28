@@ -1,10 +1,152 @@
 # Changelog
 
-## [Unreleased]
+[Unreleased]
 
-### removed
+## [3.3.7] - 2026-08-27
 
-- Removed dependency: `@angular/forms` (removed from `package.json` and `package-lock.json` in the last commit).
+### Added
+
+- **EUD-38 — inventario CycloneDX y gate de licencias**: el repositorio genera su inventario CycloneDX 1.6 en cada construcción, lo publica como activo de cada release (`sbom-v<version>.cdx.json`, comprobando que la versión del inventario coincide con la del artefacto) y evalúa cada pull request contra la lista de licencias admitidas (`.github/license-policy.json`, transcripción de `conv-quality-security-gates.md` §16.1). El evaluador y su suite de tests viven en `.github/scripts/`, sin dependencias de terceros y sin depender de ningún otro repositorio. Guía operativa: `docs/_shared/guides/license-gate-and-sbom.md` en `eudistack-platform-dev`.
+
+### Changed
+
+- **Generación del inventario fijada y reproducible**: `@cyclonedx/cyclonedx-npm` pasa a ser `devDependency` con versión exacta y se ejecuta mediante `npm run sbom` después de `npm ci`, en lugar de descargarse con `npx --yes` en tiempo de construcción. Los componentes de desarrollo se mantienen marcados en el inventario en vez de omitirse: el gate ya distingue por ámbito y bloquea solo lo que se distribuye en ejecución.
+
+## [3.3.6] - 2026-07-24
+
+### Added
+
+- **Calidalia tenant**: added `'calidalia'` to `KNOWN_TENANTS` (`tenants.constants.ts`) so the tenant guard resolves the hostname instead of redirecting to `/tenant-not-found`.
+
+## [3.3.5] - 2026-07-03
+
+### Changed (2026-07-03)
+
+- **i18n follows the browser language** when the tenant supports it (`i18n.available`), falling back to `defaultLang`.
+- **Support link wording adapts to the viewport** (`login.support.contact.desktop` / `.mobile`).
+- **Login card, wallet CTA and support row use per-tenant brand variables** (`--secondary-color` / `--primary-color`) instead of fixed colors.
+
+## [3.3.4] - 2026-07-02
+
+### Changed (feature/mfe-login-redesign)
+
+- **Full redesign of the Verifier login screen** (new `login-card` layout, wallet CTA, support row, updated typography and translations).
+- **Migrated icons from Material Icons to Ionicons** (registered via `ionicons/loader` + `addIcons`).
+- **New horizontal countdown bar** replacing the circular timer.
+- **Mobile layout** reworked (instruction, access code and copy button moved outside the card).
+- **Per-tenant auth background gradient** via `branding.auth` tokens (`--auth-background` / `--auth-gradient-end`).
+
+## [3.3.3] - 2026-06-23
+- Resolve issuer and wallet URL dynamically.
+- Update custom-domain.js model.
+
+### Changed (2026-06-18)
+- Resolved multiple Critical and High severity vulnerabilities in frontend build dependencies.
+
+## [3.3.2] - 2026-06-18
+- **SSE URL resolution** is resolved with the appropiate canonical or non-canonical URL.
+
+## [3.3.1] - 2026-06-18
+
+### Added (2026-06-18)
+
+- **CGCOM tenant support** added to tenants constants. applied CGCOM own branding.
+
+## [3.2.7] - 2026-06-17
+
+- **SSE URL resolution** is resolved with the appropiate canonical or non-canonical URL.
+
+## [3.2.6] - 2026-06-15
+
+### Added (2026-06-15)
+
+- **`TenantService` with three-step resolution.** New `TenantService` resolves the active tenant before bootstrap in three steps: (1) extract slug from the first hostname label, strip env suffix (`-stg`/`-dev`/`-pre`), validate against `^[a-z0-9-]+$` and `KNOWN_TENANTS`; (2) if unresolved, fetch `/assets/custom-domain.json` and look up `window.location.hostname` in the map, applying the same validation; (3) fall back to `FALLBACK_TENANT` (`eudistack`). Enables custom-domain deployments (e.g. `wallets.company.com`) to be mapped to a known tenant without relying on subdomain structure.
+- **`APP_INITIALIZER` ordering guarantee.** The initialiser in `app.config.ts` now chains `tenantService.resolve()` → `themeService.load()` sequentially in a single factory, ensuring the tenant signal is settled before `ThemeService` reads it.
+
+### Changed (2026-06-15)
+
+- **`tenants.constants.ts` simplified to data-only.** All resolution logic (`resolveTenant`, `stripEnvSuffix`, `TENANT_SLUG_RE`, `ENV_SUFFIXES`) moved into `TenantService` as private members. The file now exports only `KNOWN_TENANTS` and `FALLBACK_TENANT`.
+- **`ThemeService` decoupled from `window.location`.** `load()` reads `this.tenantService.tenant()` (signal) instead of calling `resolveTenant(window.location.hostname)` directly.
+
+## [3.3.0] - 2026-06-16
+
+### Added (EUDISTACK-606 — US-003: Footer embebido configurable por tenant)
+
+- **Tenant embedded footer.** `LoginComponent` now renders an optional tenant-provided HTML block below the page content. The block is conditionally rendered with `*ngIf` — the DOM node is fully absent (no space reserved) when the tenant has no `footerEmbedCode` configured (FR-06 / FR-07 / AC-01 / AC-02).
+- **Footer sanitization via shared pipeline.** `ThemeService.sanitizedFooter` getter delegates to the existing `sanitizeEmbedHtml()` method, applying DOMPurify with the canonical allow-list (`EMBED_ALLOWED_TAGS`, `EMBED_ALLOWED_ATTR`, `EMBED_ALLOWED_URI_REGEXP`) before `DomSanitizer.bypassSecurityTrustHtml()`. Prohibits `<script>`, `<style>`, `javascript:` hrefs, and `on*` event handlers (FR-08 / AC-03 / ES-01–ES-04 / ADR-arch-002 / ADR-arch-003 / AD-1).
+- **Empty-after-sanitize guard.** If DOMPurify strips all footer content, `sanitizeEmbedHtml` returns `null` and the footer container is not rendered (EC-01).
+- **DOME seed footerEmbedCode.** `tenants/dome/theme.json` in `eudistack-platform-assets` updated with registration CTAs (customer + provider) as `footerEmbedCode` (in `eudistack-platform-assets`).
+
+### Removed (EUDISTACK-606 — US-003: Footer embebido configurable por tenant)
+
+- **Deprecated `registration-card` block.** The `*ngIf="theme.content?.onboardingUrl"` registration card has been removed from `LoginComponent` template and SCSS — superseded by the configurable `footerEmbedCode` embed (ADR-arch-005).
+- **Deprecated `onboardingUrl` field.** Removed from all seed `theme.json` files (`dome`, `altia`, `cgcom`, `eudistack`, `kpmg`) in `eudistack-platform-assets` (ADR-arch-005).
+
+### Added (EUDISTACK-605 — US-002: Header embebido configurable por tenant)
+
+- **Tenant embedded header.** `LoginComponent` now renders an optional tenant-provided HTML block above the branding header. The block is conditionally rendered with `*ngIf` — the DOM node is fully absent (no space reserved) when the tenant has no `headerEmbedCode` configured (FR-03 / FR-04 / AC-01 / AC-02).
+- **DOMPurify sanitization.** `ThemeService.sanitizeEmbedHtml()` applies DOMPurify with a canonical allow-list (`EMBED_ALLOWED_TAGS`, `EMBED_ALLOWED_ATTR`, `EMBED_ALLOWED_URI_REGEXP: /^https:/i`) before passing content to Angular's `DomSanitizer.bypassSecurityTrustHtml()`. Prohibits `<script>`, `<style>`, `javascript:` hrefs, and `on*` event handlers (FR-05 / AC-03 / ES-01–ES-04 / ADR-arch-002 / ADR-arch-003).
+- **Empty-after-sanitize guard.** If DOMPurify strips all content, `sanitizeEmbedHtml` returns `null` and the container is not rendered (EC-01).
+- **Shared allow-list constants.** `embed-sanitizer.constants.ts` materialises the canonical allow-list from `architecture.md §6` as TypeScript constants, ready for reuse by US-003 (footer embed).
+
+### Added (EUDISTACK-604 — US-001: Carga per-tenant del theme.json desde subdominio)
+
+- **Per-tenant theme resolution.** The Login MFE now resolves the tenant from the request hostname (`resolveTenant(window.location.hostname)`) and loads its branding from `/assets/tenants/{tenant}/theme.json` via `APP_INITIALIZER`, before the first paint. Replaces the previous single hardcoded `assets/theme.json`.
+- **Deterministic fallback.** Any failure during theme load (404, 5xx, timeout ≥800 ms, malformed response) silently falls back to the built-in EUDIStack default theme. The bootstrap always completes; no blank screen on theme errors.
+- **Extended `Theme` contract.** `ThemeContent` now includes optional `headerEmbedCode: string | null` and `footerEmbedCode: string | null` fields for future US-002/003 embed slots. `onboardingUrl` is deprecated (kept for backward-compat).
+- **Path-traversal guard.** Resolved tenant identifiers are validated against `^[a-z0-9-]+$` before composing the asset URL (ES-05).
+- **Asset path rewriting.** `rewriteAssetPaths()` normalises `/assets/tenant/logo.png` → `/assets/tenants/{tenant}/logo.png` after loading the theme, matching the Wallet PWA pattern and fixing broken logos on non-sandbox tenants.
+
+## [3.2.4] - 2026-05-19
+
+### Fixed
+- Redirect to /issuer/home when login times out.
+
+## [3.2.3] - 2026-05-13
+
+### Added
+- **Knowledge Base link.** Added a link to the knowledge base in the footer of the login component.
+
+## [3.2.2] - 2026-05-04
+
+### Added
+- **QR scanner appearance.** Changed the QR look and feel to improve scan reliability and keep the scanner path responsive.
+
+## [3.2.1] - 2026-04-28
+
+### Fixed (EUDI-094 multi-tenant rollout)
+
+- **GitHub Actions env — `API_BASE_URL=/verifier`.** Post-cutover the
+  Atlassian-style routing serves the verifier same-origin under
+  `/verifier/*`, but the STG env variable still pointed to the legacy
+  `https://verifier-stg.api.altia.eudistack.net` which no longer
+  resolves (`ERR_NAME_NOT_RESOLVED` on SSE at
+  `/api/login/events`). Variable updated in GitHub Actions `stg`
+  environment; redeploy triggered to regenerate `assets/env.js`.
+
+### Added
+- Add visual focus indicators, keyboard support (spacebar), and ARIA labels (PRB-002)
+
+## [3.2.0] - 2026-04-23
+
+### Changed (EUDI-094 — auto-deploy to all tenants on release)
+
+- **`.github/workflows/deploy.yml`** — eliminado el input `tenant`. El deploy publica un build único a `s3://.../verifier/` e invalida todas las CloudFront STG del entorno (en lugar de una sola por tenant).
+- **`.github/workflows/release.yml`** — el release dispara `deploy.yml` automáticamente tras el tag (`--ref main`) sin parametrizar tenant.
+
+## [3.1.1] - 2026-04-23
+
+### Changed (EUDI-094 — drop tenant asset injection from deploy)
+
+- **`.github/workflows/deploy.yml`** — eliminado el step "Inject tenant assets" que clonaba `eudistack-platform-assets` y sobreescribía `assets/theme.json` y `assets/tenant/*` en cada deploy. Login es un SPA con branding de producto único (baked en `src/assets/`, ya así desde 3.1.0), por lo que la inyección per-tenant era dead work.
+
+## [3.1.0] - 2026-04-20
+
+### Added (EUDI-064: SaaS multi-tenant)
+
+- Product branding baked at build time (no runtime branding config).
+- Atlassian-style base-href for same-origin MFE serving.
+- Relative API URLs for same-origin routing.
 
 ## [3.0.0] - 2026-03-24
 

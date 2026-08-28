@@ -15,6 +15,12 @@ updates:
         applies-to: security-updates
         patterns:
           - "*"
+    ignore:
+      # eslint 10 requires angular-eslint >= 21, which pins @angular/cli >= 21.
+      # This repo is on Angular 19, so the major is unmergeable (see PR #30).
+      # Remove this entry as part of the Angular 19 -> 21 migration.
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
 
   # GitHub Actions
   - package-ecosystem: "github-actions"

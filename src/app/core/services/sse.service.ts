@@ -4,6 +4,7 @@ import { environment } from '../../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
 export class SseService {
+
   connect(state: string): Observable<string> {
     return new Observable<string>(subscriber => {
       const url = `${environment.api_base_url}/api/login/events?state=${encodeURIComponent(state)}`;
