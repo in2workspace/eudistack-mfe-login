@@ -1,22 +1,39 @@
 {
+  "tenantDomain": "EUDISTACK",
   "branding": {
-    "name": "Verifier Portal",
-    "primaryColor": "#001E8C",
+    "name": "EUDIStack",
+    "primaryColor": "#0F2B5B",
     "primaryContrastColor": "#ffffff",
-    "secondaryColor": "#14274A",
-    "secondaryContrastColor": "#00ADD3",
-    "logoUrl": null,
-    "faviconUrl": null
+    "secondaryColor": "#00BFA6",
+    "secondaryContrastColor": "#ffffff",
+    "logoUrl": "assets/logos/logo.svg",
+    "logoDarkUrl": "assets/logos/logo-dark.svg",
+    "faviconUrl": "assets/favicon.svg",
+    "pwaIconUrl": null,
+    "card": {
+      "background": "#0F2B5B",
+      "gradientEnd": "#00BFA6",
+      "text": "#ffffff"
+    },
+    "auth": {
+      "background": "#0F2B5B",
+      "gradientEnd": "#071A3A"
+    }
   },
   "content": {
     "links": [],
     "footer": null,
+    "headerEmbedCode": null,
+    "footerEmbedCode": null,
+    "knowledgeBaseUrl": "https://docs.eudistack.net/",
     "onboardingUrl": null,
     "supportUrl": null,
-    "walletUrl": null
+    "walletUrl": "/wallet",
+    "walletUrlTest": null,
+    "showWalletUrlTest": false
   },
   "i18n": {
-    "defaultLang": "en",
-    "available": ["en", "es", "ca"]
+    "defaultLang": "es",
+    "available": ["en", "es"]
   }
 }
