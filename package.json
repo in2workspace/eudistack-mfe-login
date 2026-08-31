@@ -21,7 +21,7 @@
     "@angular/platform-browser-dynamic": "^19.2.20",
     "@angular/router": "^19.2.20",
     "@ngx-translate/core": "^17.0.0",
-    "@ngx-translate/http-loader": "^16.0.1",
+    "@ngx-translate/http-loader": "^18.0.0",
     "angularx-qrcode": "^19.0.0",
     "dompurify": "^3.4.9",
     "ionicons": "^8.0.13",
