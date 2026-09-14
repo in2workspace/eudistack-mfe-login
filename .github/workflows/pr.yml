@@ -13,6 +13,12 @@ permissions:
 jobs:
   quality:
     uses: in2workspace/eudistack-devops-workflows/.github/workflows/spa-pr.yml@12ed6fa9090ebd4564c6541b67111ed4466a61b1
+    with:
+      lint_command: npm run lint
+      build_command: >-
+        npm run build -- --configuration development --output-path=./dist/out
+      build_output: dist/out/browser
+      serve_command: python3 -m http.server 8080 --directory dist/out/browser
     secrets:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 

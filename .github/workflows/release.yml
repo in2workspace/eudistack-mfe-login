@@ -31,4 +31,8 @@ jobs:
         npm run build -- --configuration production --output-path=./dist/out
         --base-href=/verifier/ --deploy-url=/verifier/
       build_output: dist/out/browser
+      lint_command: npm run lint
+      staging_public_config_json: '{"API_BASE_URL":"/verifier"}'
+      production_public_config_json: '{"API_BASE_URL":"/verifier"}'
+      runtime_required_variables: API_BASE_URL
     secrets: inherit

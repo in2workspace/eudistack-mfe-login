@@ -54,6 +54,8 @@ jobs:
       staging_environment: stg
       production_environment: pro
       production_smoke_url: https://sandbox.eudistack.net/verifier/
+      production_public_config_json: '{"API_BASE_URL":"/verifier"}'
+      runtime_required_variables: API_BASE_URL
       allow_downgrade: ${{ inputs.allow_downgrade }}
       downgrade_reason: ${{ inputs.downgrade_reason }}
     secrets: inherit
