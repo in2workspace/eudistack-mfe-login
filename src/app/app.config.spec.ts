@@ -1,5 +1,5 @@
 /**
- * Bootstrap integration tests for APP_INITIALIZER (TenantService.resolve → ThemeService.load).
+ * Bootstrap integration tests for APP_INITIALIZER (TenantService.resolve → ThemeService.load)
  *
  * The APP_INITIALIZER in app.config.ts chains:
  *   await tenantService.resolve();
