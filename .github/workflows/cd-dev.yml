@@ -1,0 +1,36 @@
+name: Deploy DEV
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - '.github/**'
+      - 'docs/**'
+      - 'LICENSE'
+      - '.gitignore'
+      - 'config/trivy/**'
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+  security-events: write
+
+jobs:
+  analyze:
+    uses: in2workspace/eudistack-devops-workflows/.github/workflows/common-codeql-javascript.yml@12ed6fa9090ebd4564c6541b67111ed4466a61b1
+
+  deploy:
+    uses: in2workspace/eudistack-devops-workflows/.github/workflows/spa-cd-dev.yml@12ed6fa9090ebd4564c6541b67111ed4466a61b1
+    with:
+      project_name: eudistack
+      region_code: ew1
+      environment: dev
+      spa_prefix: /verifier/
+      smoke_url: https://sandbox.dev.eudistack.net/verifier/
+      build_command: >-
+        npm run build -- --configuration production --output-path=./dist/out
+        --base-href=/verifier/ --deploy-url=/verifier/
+      build_output: dist/out/browser
+    secrets: inherit

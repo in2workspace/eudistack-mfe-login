@@ -1,0 +1,34 @@
+name: Release SPA
+
+on:
+  push:
+    branches:
+      - 'release/v*.*.*'
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+      - '.gitignore'
+
+permissions:
+  actions: read
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    uses: in2workspace/eudistack-devops-workflows/.github/workflows/spa-release.yml@12ed6fa9090ebd4564c6541b67111ed4466a61b1
+    with:
+      project_name: eudistack
+      region_code: ew1
+      spa_prefix: /verifier/
+      staging_environment: stg
+      production_environment: pro
+      staging_smoke_url: https://sandbox.stg.eudistack.net/verifier/
+      production_smoke_url: https://sandbox.eudistack.net/verifier/
+      build_command: >-
+        npm run build -- --configuration production --output-path=./dist/out
+        --base-href=/verifier/ --deploy-url=/verifier/
+      build_output: dist/out/browser
+    secrets: inherit
