@@ -41,7 +41,7 @@ permissions:
 
 jobs:
   deploy:
-    uses: in2workspace/eudistack-devops-workflows/.github/workflows/spa-deploy-pro.yml@12ed6fa9090ebd4564c6541b67111ed4466a61b1
+    uses: in2workspace/eudistack-devops-workflows/.github/workflows/spa-deploy-pro.yml@5f949958c1932739d0763fd7d733b6b1a634eba2
     with:
       version: ${{ inputs.version }}
       base_artifact_digest: ${{ inputs.base_artifact_digest }}
@@ -54,7 +54,6 @@ jobs:
       staging_environment: stg
       production_environment: pro
       production_smoke_url: https://sandbox.eudistack.net/verifier/
-      production_public_config_json: '{"API_BASE_URL":"/verifier"}'
       runtime_required_variables: API_BASE_URL
       allow_downgrade: ${{ inputs.allow_downgrade }}
       downgrade_reason: ${{ inputs.downgrade_reason }}

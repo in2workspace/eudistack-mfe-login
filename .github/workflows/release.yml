@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   release:
-    uses: in2workspace/eudistack-devops-workflows/.github/workflows/spa-release.yml@12ed6fa9090ebd4564c6541b67111ed4466a61b1
+    uses: in2workspace/eudistack-devops-workflows/.github/workflows/spa-release.yml@5f949958c1932739d0763fd7d733b6b1a634eba2
     with:
       project_name: eudistack
       region_code: ew1
@@ -32,7 +32,5 @@ jobs:
         --base-href=/verifier/ --deploy-url=/verifier/
       build_output: dist/out/browser
       lint_command: npm run lint
-      staging_public_config_json: '{"API_BASE_URL":"/verifier"}'
-      production_public_config_json: '{"API_BASE_URL":"/verifier"}'
       runtime_required_variables: API_BASE_URL
     secrets: inherit
