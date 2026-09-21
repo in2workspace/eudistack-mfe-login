@@ -1,4 +1,4 @@
-* @in2workspace/kizunaops @oriolcanades @JairoChisaca @AlbaLopez552 @albertrodriguezdev @rogermiretin2 @auribelalvarado-collab
+* @in2workspace/kizunaops
 
 # License gate — append these lines at the  .github/CODEOWNERS.
 # Order matters: GitHub applies the LAST matching pattern, so a catch-all such
