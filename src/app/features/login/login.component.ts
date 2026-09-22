@@ -41,6 +41,8 @@ export class LoginComponent implements OnInit, OnDestroy {
   private timerSub?: Subscription;
   private themeSub?: Subscription;
   private countdownInterval?: ReturnType<typeof setInterval>;
+  private countdownDeadline = 0;
+  private readonly onVisibilityChange = (): void => this.tickCountdown();
 
   private readonly tenantService = inject(TenantService);
 
@@ -131,16 +133,29 @@ export class LoginComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Drives the countdown from wall-clock time (a fixed deadline) rather than
+   * counting `setInterval` firings. A tick-counting countdown silently drifts
+   * (or appears frozen) whenever the browser throttles or delays timers in a
+   * backgrounded/hidden tab — exactly what happens while the user looks away
+   * from this device to scan the QR with their wallet. Recomputing from
+   * `Date.now()` on every tick, and immediately on `visibilitychange`, makes
+   * the displayed value self-correct instead of slowly catching up.
+   */
   private startCountdown(): void {
-    this.remainingSeconds = LOGIN_TIMEOUT_SECONDS;
-    this.countdownPercentage = 100;
-    this.countdownInterval = setInterval(() => {
-      this.remainingSeconds = Math.max(0, this.remainingSeconds - 1);
-      this.countdownPercentage = (this.remainingSeconds / LOGIN_TIMEOUT_SECONDS) * 100;
-      if (this.remainingSeconds <= 0) {
-        this.clearCountdown();
-      }
-    }, 1000);
+    this.countdownDeadline = Date.now() + LOGIN_TIMEOUT_MS;
+    this.tickCountdown();
+    this.countdownInterval = setInterval(() => this.tickCountdown(), 1000);
+    document.addEventListener('visibilitychange', this.onVisibilityChange);
+  }
+
+  private tickCountdown(): void {
+    const remainingMs = Math.max(0, this.countdownDeadline - Date.now());
+    this.remainingSeconds = Math.ceil(remainingMs / 1000);
+    this.countdownPercentage = (remainingMs / LOGIN_TIMEOUT_MS) * 100;
+    if (remainingMs <= 0) {
+      this.clearCountdown();
+    }
   }
 
   private clearCountdown(): void {
@@ -148,6 +163,7 @@ export class LoginComponent implements OnInit, OnDestroy {
       clearInterval(this.countdownInterval);
       this.countdownInterval = undefined;
     }
+    document.removeEventListener('visibilitychange', this.onVisibilityChange);
   }
 
   ngOnDestroy(): void {
