@@ -437,6 +437,106 @@ describe('LoginComponent', () => {
 
       component.ngOnDestroy();
     }));
+
+    // Regression guard: the countdown used to decrement by exactly 1 per
+    // setInterval firing. Ticking through the 30-seconds-remaining mark
+    // (90s elapsed of the 120s window) must land on the exact wall-clock
+    // value, not drift from missed/coalesced ticks.
+    it('should be exactly 30 seconds remaining after 90 of the 120 seconds elapse', fakeAsync(() => {
+      createComponent({ state: 's123' });
+      fixture.detectChanges();
+
+      tick(90_000);
+      expect(component.remainingSeconds).toBe(30);
+      expect(component.countdownPercentage).toBeCloseTo(25, 1);
+
+      component.ngOnDestroy();
+    }));
+
+    // Regression guard (EUDIStack bug: countdown bar frozen at "30 seconds
+    // remaining"). A tick-counting countdown ("remainingSeconds - 1" per
+    // setInterval firing) silently stalls whenever the browser throttles or
+    // delays timers in a backgrounded/hidden tab — exactly what happens
+    // while the user looks away from this device to scan the QR with their
+    // wallet. The countdown must instead be derived from wall-clock time, so
+    // a single late/throttled tick still reflects the real elapsed time.
+    it('should reflect real elapsed time even when the interval is throttled and fires only once after a long gap', () => {
+      let now = 1_700_000_000_000;
+      jest.spyOn(Date, 'now').mockImplementation(() => now);
+
+      // Note: rxjs' timer(LOGIN_TIMEOUT_MS) also happens to schedule itself via
+      // setInterval (with a 120000ms delay) — only capture the countdown's own
+      // 1000ms tick, not that unrelated one.
+      let intervalCallback: () => void = () => undefined;
+      jest.spyOn(window, 'setInterval').mockImplementation(((cb: () => void, ms?: number) => {
+        if (ms === 1000) {
+          intervalCallback = cb;
+        }
+        return 1 as unknown as ReturnType<typeof setInterval>;
+      }) as unknown as typeof setInterval);
+      jest.spyOn(window, 'clearInterval').mockImplementation(() => undefined);
+
+      createComponent({ state: 's123' });
+      fixture.detectChanges();
+
+      expect(component.remainingSeconds).toBe(120);
+
+      // 90 real seconds pass while the tab is backgrounded, but the
+      // browser only lets the interval fire ONCE instead of 90 times.
+      now += 90_000;
+      intervalCallback();
+
+      expect(component.remainingSeconds).toBe(30);
+      expect(component.countdownPercentage).toBeCloseTo(25, 1);
+
+      component.ngOnDestroy();
+      jest.restoreAllMocks();
+    });
+
+    it('should recompute the remaining time immediately on visibilitychange, without waiting for the next tick', () => {
+      let now = 1_700_000_000_000;
+      jest.spyOn(Date, 'now').mockImplementation(() => now);
+      jest.spyOn(window, 'setInterval').mockImplementation((() => 1) as unknown as typeof setInterval);
+      jest.spyOn(window, 'clearInterval').mockImplementation(() => undefined);
+
+      createComponent({ state: 's123' });
+      fixture.detectChanges();
+
+      expect(component.remainingSeconds).toBe(120);
+
+      now += 45_000;
+      document.dispatchEvent(new Event('visibilitychange'));
+
+      expect(component.remainingSeconds).toBe(75);
+
+      component.ngOnDestroy();
+      jest.restoreAllMocks();
+    });
+
+    it('should not clear the interval before remainingSeconds reaches 0, absent success/error/timeout', fakeAsync(() => {
+      createComponent({ state: 's123' });
+      fixture.detectChanges();
+
+      tick(119_000);
+      expect(component.remainingSeconds).toBe(1);
+      expect(component.waitingForVerification).toBe(true);
+      expect(component.timedOut).toBe(false);
+      expect(component.errorMessage).toBe('');
+
+      component.ngOnDestroy();
+    }));
+
+    it('should remove the visibilitychange listener when the countdown is cleared on destroy', () => {
+      const removeSpy = jest.spyOn(document, 'removeEventListener');
+
+      createComponent({ state: 's123' });
+      fixture.detectChanges();
+
+      component.ngOnDestroy();
+
+      expect(removeSpy).toHaveBeenCalledWith('visibilitychange', expect.any(Function));
+      removeSpy.mockRestore();
+    });
   });
 
   // --- Timeout redirect ---
