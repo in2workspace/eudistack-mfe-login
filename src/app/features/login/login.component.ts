@@ -25,7 +25,6 @@ const ISSUER_HOME_PATH = '/issuer/home';
 export class LoginComponent implements OnInit, OnDestroy {
   authRequest = '';
   state = '';
-  homeUri = '';
   theme: Theme | null = null;
   headerHtml: SafeHtml | null = null;
   footerHtml: SafeHtml | null = null;
@@ -53,7 +52,6 @@ export class LoginComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.authRequest = this.route.snapshot.queryParamMap.get('authRequest') ?? '';
     this.state = this.route.snapshot.queryParamMap.get('state') ?? '';
-    this.homeUri = this.route.snapshot.queryParamMap.get('homeUri') ?? '';
 
     this.themeSub = this.themeService.observeTheme().subscribe(t => {
       this.theme = t;
@@ -115,12 +113,6 @@ export class LoginComponent implements OnInit, OnDestroy {
       this.copied = true;
       setTimeout(() => this.copied = false, 2000);
     });
-  }
-
-  navigateHome(): void {
-    if (this.homeUri) {
-      window.location.href = this.homeUri;
-    }
   }
 
   openWallet(): void {

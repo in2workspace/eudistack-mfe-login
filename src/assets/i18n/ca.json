@@ -1,5 +1,4 @@
 {
-  "login.home": "Anar a l'inici",
   "login.timer.remaining": "{{seconds}} segons restants",
   "login.title": "Inicia la sessió a {{name}}",
   "login.subtitle": "Utilitza la teva Wallet Digital per accedir de manera segura a {{name}}.",

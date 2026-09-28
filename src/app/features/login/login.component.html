@@ -5,12 +5,6 @@
 <header class="header" *ngIf="theme?.branding?.logoUrl && !headerHtml">
   <img [src]="theme!.branding.logoUrl"
        [attr.alt]="theme!.branding.name ? theme!.branding.name + ' logo' : 'Logo'"
-       [attr.aria-label]="'login.home' | translate"
-       (click)="navigateHome()"
-       (keydown.enter)="navigateHome()"
-       (keyup.space)="$event.preventDefault(); navigateHome()"
-       tabindex="0"
-       role="button"
        class="header-logo" />
 </header>
 

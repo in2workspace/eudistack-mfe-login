@@ -109,13 +109,12 @@ describe('LoginComponent', () => {
   // --- Initialization ---
 
   describe('ngOnInit', () => {
-    it('should read authRequest, state and homeUri from query params', () => {
-      createComponent({ authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc', state: 's123', homeUri: '/home' });
+    it('should read authRequest and state from query params', () => {
+      createComponent({ authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc', state: 's123' });
       fixture.detectChanges();
 
       expect(component.authRequest).toBe('https://verifier.example.com/oid4vp/auth?nonce=abc');
       expect(component.state).toBe('s123');
-      expect(component.homeUri).toBe('/home');
     });
 
     it('should default to empty strings when query params are missing', () => {
@@ -124,7 +123,6 @@ describe('LoginComponent', () => {
 
       expect(component.authRequest).toBe('');
       expect(component.state).toBe('');
-      expect(component.homeUri).toBe('');
     });
 
     it('should subscribe to theme', () => {
@@ -396,17 +394,6 @@ describe('LoginComponent', () => {
 
       expect(loginCard).toBeNull();
       expect(timeoutCard).toBeTruthy();
-    });
-  });
-
-  // --- Navigation ---
-
-  describe('navigateHome', () => {
-    it('should not throw when homeUri is empty', () => {
-      createComponent({});
-      fixture.detectChanges();
-
-      expect(() => component.navigateHome()).not.toThrow();
     });
   });
 

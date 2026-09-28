@@ -2,6 +2,12 @@
 
 [Unreleased]
 
+## [3.3.8] - 2026-09-28
+
+### Fixed
+
+- **El logo de la cabecera del login ya no es clicable**: se elimina la navegación a `homeUri` (que llevaba a una URL rota del verifier). El `<img>` es ahora una imagen estática, sin `role="button"`, `tabindex`, manejadores de teclado/clic ni `cursor: pointer`. Se elimina el código muerto asociado: `navigateHome()`, la propiedad `homeUri` (y su lectura del query param) y la clave i18n `login.home` (es/en/ca).
+
 ## [3.3.7] - 2026-08-27
 
 ### Added
