@@ -7,6 +7,9 @@
 ### Fixed
 
 - **El logo de la cabecera del login ya no es clicable**: se elimina la navegación a `homeUri` (que llevaba a una URL rota del verifier). El `<img>` es ahora una imagen estática, sin `role="button"`, `tabindex`, manejadores de teclado/clic ni `cursor: pointer`. Se elimina el código muerto asociado: `navigateHome()`, la propiedad `homeUri` (y su lectura del query param) y la clave i18n `login.home` (es/en/ca).
+### Fixed
+
+- **Login QR countdown could appear frozen on a backgrounded/hidden tab**: `login.component.ts` decremented `remainingSeconds` by 1 per `setInterval` firing instead of tracking wall-clock time, so it silently drifted or stalled whenever the browser throttled/delayed timers on a hidden tab — exactly what happens while the user looks away from this device to scan the QR with their wallet. The countdown now derives `remainingSeconds`/`countdownPercentage` from a fixed `Date.now()` deadline on every tick, and recomputes immediately on `visibilitychange` so it self-corrects the instant the tab regains focus instead of slowly catching up tick by tick. Verified live on a running build by patching `Date.now` and simulating a 90s backgrounded-tab jump: the countdown corrected instantly instead of requiring 90 individual ticks. Tests: `login.component.spec.ts` (throttled-interval simulation, immediate `visibilitychange` correction, exact value at the 30-seconds-remaining mark, interval not cleared early absent success/error/timeout).
 
 ## [3.3.7] - 2026-08-27
 
