@@ -1,5 +1,4 @@
 {
-  "login.home": "Go to homepage",
   "login.timer.remaining": "{{seconds}} seconds remaining",
   "login.title": "Sign in to {{name}}",
   "login.subtitle": "Use your Digital Wallet to securely access {{name}}.",
