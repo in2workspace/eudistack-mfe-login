@@ -35,8 +35,20 @@
         </div>
       </div>
 
+      <!-- Direct access (no authRequest): point the user to the Issuer to start a login -->
+      <ng-container *ngIf="directAccess && !timedOut && !errorMessage && !showSuccess">
+        <h1 class="signin-title">{{ 'login.title' | translate:{ name: theme.branding.name } }}</h1>
+        <div class="direct-access-card" role="status">
+          <p class="direct-access-message">{{ 'login.direct.message' | translate:{ name: theme.branding.name } }}</p>
+          <a class="wallet-cta direct-access-link" [href]="issuerUrl">
+            <span>{{ 'login.direct.cta' | translate }}</span>
+            <ion-icon name="arrow-forward-outline" aria-hidden="true"></ion-icon>
+          </a>
+        </div>
+      </ng-container>
+
       <!-- QR card -->
-      <ng-container *ngIf="!timedOut && !errorMessage && !showSuccess">
+      <ng-container *ngIf="!directAccess && !timedOut && !errorMessage && !showSuccess">
 
         <!-- Contextual title built from the tenant identity (branding.name) -->
         <h1 class="signin-title">{{ 'login.title' | translate:{ name: theme.branding.name } }}</h1>

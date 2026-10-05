@@ -397,6 +397,39 @@ describe('LoginComponent', () => {
     });
   });
 
+  // --- Direct access ---
+
+  describe('direct access (no authRequest)', () => {
+    it('should show a link to the Issuer instead of the QR', () => {
+      createComponent({}, { isCanonical: true });
+      fixture.detectChanges();
+
+      const link: HTMLAnchorElement = fixture.nativeElement.querySelector('.direct-access-link');
+      expect(component.directAccess).toBe(true);
+      expect(link.getAttribute('href')).toBe('/issuer/home');
+      expect(fixture.nativeElement.querySelector('.login-card')).toBeNull();
+      expect(fixture.nativeElement.querySelector('qrcode')).toBeNull();
+    });
+
+    it('should link to the resolved Issuer on custom domains', () => {
+      const env = { issuer: 'https://issuer.example.com', wallet: 'https://wallet.example.com' } as CustomDomainEnv;
+      createComponent({}, { isCanonical: false, resolvedEnv: env });
+      fixture.detectChanges();
+
+      const link: HTMLAnchorElement = fixture.nativeElement.querySelector('.direct-access-link');
+      expect(link.getAttribute('href')).toBe('https://issuer.example.com/home');
+    });
+
+    it('should not show the Issuer link when an authRequest is present', () => {
+      createComponent({ authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' });
+      fixture.detectChanges();
+
+      expect(component.directAccess).toBe(false);
+      expect(fixture.nativeElement.querySelector('.direct-access-link')).toBeNull();
+      expect(fixture.nativeElement.querySelector('.login-card')).toBeTruthy();
+    });
+  });
+
   // --- Countdown ---
 
   describe('countdown', () => {

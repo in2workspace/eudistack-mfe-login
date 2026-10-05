@@ -88,11 +88,20 @@ export class LoginComponent implements OnInit, OnDestroy {
         this.clearCountdown();
         this.sseSub?.unsubscribe();
         setTimeout(() => {
-          const resolvedEnv = this.tenantService.resolvedEnv();
-          window.location.href = resolvedEnv ? `${resolvedEnv.issuer}/home` : ISSUER_HOME_PATH;
+          window.location.href = this.issuerUrl;
         }, 3000);
       });
     }
+  }
+
+  /** Direct access: no OAuth session was started, so there is nothing to authenticate. */
+  get directAccess(): boolean {
+    return !this.authRequest;
+  }
+
+  get issuerUrl(): string {
+    const resolvedEnv = this.tenantService.resolvedEnv();
+    return resolvedEnv ? `${resolvedEnv.issuer}/home` : ISSUER_HOME_PATH;
   }
 
   get walletUrl(): string | null {

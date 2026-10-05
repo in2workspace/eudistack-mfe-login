@@ -157,6 +157,9 @@
   &:focus-visible { outline: 3px solid var(--primary-contrast-color); outline-offset: 3px; }
   ion-icon { font-size: 18px; }
 }
+a.wallet-cta { text-decoration: none; }
+.direct-access-card { display: flex; flex-direction: column; align-items: center; gap: 20px; width: 100%; text-align: center; }
+.direct-access-message { font-size: 18px; line-height: 1.4; margin: 0; }
 .wallet-hint { font-size: 14px; opacity: 0.75; margin: 0; text-align: center; }
 
 // — Support row —

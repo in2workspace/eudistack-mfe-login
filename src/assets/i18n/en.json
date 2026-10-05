@@ -18,6 +18,8 @@
   "login.support.needHelp": "Need help to sign in?",
   "login.support.contact.desktop": "Access our support resources",
   "login.support.contact.mobile": "Visit Support",
+  "login.direct.message": "This page is only used to complete a sign-in started from an application. To get a QR access code, start from the Issuer.",
+  "login.direct.cta": "Go to the Issuer",
   "login.timeout": "Session expired. Please try again.",
   "login.verified": "Verified!",
   "login.error": "An error occurred during login.",

@@ -18,6 +18,8 @@
   "login.support.needHelp": "¿Necesitas ayuda para iniciar sesión?",
   "login.support.contact.desktop": "Visita nuestros recursos de soporte",
   "login.support.contact.mobile": "Visita Soporte",
+  "login.direct.message": "Esta pantalla solo sirve para completar un inicio de sesión iniciado desde una aplicación. Para generar un código QR de acceso, empieza desde el Issuer.",
+  "login.direct.cta": "Ir al Issuer",
   "login.timeout": "Sesión expirada. Por favor, inténtalo de nuevo.",
   "login.verified": "¡Verificado!",
   "login.error": "Se ha producido un error durante el inicio de sesión.",

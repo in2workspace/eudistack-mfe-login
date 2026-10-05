@@ -18,6 +18,8 @@
   "login.support.needHelp": "Necessites ajuda per iniciar sessió?",
   "login.support.contact.desktop": "Visita els nostres recursos de suport",
   "login.support.contact.mobile": "Visita Suport",
+  "login.direct.message": "Aquesta pantalla només serveix per completar un inici de sessió iniciat des d'una aplicació. Per generar un codi QR d'accés, comença des de l'Issuer.",
+  "login.direct.cta": "Anar a l'Issuer",
   "login.timeout": "Sessió expirada. Si us plau, torna-ho a intentar.",
   "login.verified": "Verificat!",
   "login.error": "S'ha produït un error durant l'inici de sessió.",
