@@ -2,7 +2,7 @@ import { Component, Input } from '@angular/core';
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { By, DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { BehaviorSubject, NEVER, Observable } from 'rxjs';
+import { BehaviorSubject, NEVER, Observable, Subject } from 'rxjs';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { QRCodeComponent } from 'angularx-qrcode';
 
@@ -255,6 +255,19 @@ describe('LoginComponent', () => {
       expect(component.copied).toBe(false);
     }));
 
+    it('should keep copied false when the clipboard write is rejected', fakeAsync(() => {
+      Object.assign(navigator, {
+        clipboard: { writeText: jest.fn().mockRejectedValue(new Error('denied')) }
+      });
+      createComponent({ authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' });
+      fixture.detectChanges();
+
+      component.copyAuthRequest();
+      tick();
+
+      expect(component.copied).toBe(false);
+    }));
+
     it('should not call clipboard when authRequest is empty', () => {
       createComponent({});
       fixture.detectChanges();
@@ -430,6 +443,43 @@ describe('LoginComponent', () => {
     });
   });
 
+  // --- SSE events ---
+
+  describe('SSE events', () => {
+    function createWithSse(sse$: Subject<string>) {
+      createComponent({ authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc', state: 's123' });
+      (TestBed.inject(SseService).connect as jest.Mock).mockReturnValue(sse$.asObservable());
+      fixture.detectChanges();
+    }
+
+    it('should show success and redirect 800 ms after the redirect event', fakeAsync(() => {
+      Object.defineProperty(window, 'location', { value: { href: '' }, writable: true, configurable: true });
+      const sse$ = new Subject<string>();
+      createWithSse(sse$);
+
+      sse$.next('https://client.example.com/callback?code=1');
+
+      expect(component.showSuccess).toBe(true);
+      expect(component.waitingForVerification).toBe(false);
+      tick(800);
+      expect(window.location.href).toBe('https://client.example.com/callback?code=1');
+
+      component.ngOnDestroy();
+    }));
+
+    it('should show the login error when the SSE connection fails', fakeAsync(() => {
+      const sse$ = new Subject<string>();
+      createWithSse(sse$);
+
+      sse$.error(new Error('SSE connection failed'));
+
+      expect(component.errorMessage).toBe('login.error');
+      expect(component.waitingForVerification).toBe(false);
+
+      component.ngOnDestroy();
+    }));
+  });
+
   // --- Countdown ---
 
   describe('countdown', () => {
@@ -532,6 +582,21 @@ describe('LoginComponent', () => {
       component.ngOnDestroy();
       jest.restoreAllMocks();
     });
+
+    it('should stop the countdown at 0 when the deadline has passed', fakeAsync(() => {
+      createComponent({ state: 's123' });
+      fixture.detectChanges();
+
+      tick(1000);
+      const now = Date.now();
+      jest.spyOn(Date, 'now').mockReturnValue(now + 125_000);
+      document.dispatchEvent(new Event('visibilitychange'));
+
+      expect(component.remainingSeconds).toBe(0);
+      expect(component.countdownPercentage).toBe(0);
+
+      component.ngOnDestroy();
+    }));
 
     it('should not clear the interval before remainingSeconds reaches 0, absent success/error/timeout', fakeAsync(() => {
       createComponent({ state: 's123' });
