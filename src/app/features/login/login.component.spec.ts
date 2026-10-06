@@ -2,12 +2,13 @@ import { Component, Input } from '@angular/core';
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { By, DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { BehaviorSubject, NEVER, Observable } from 'rxjs';
+import { BehaviorSubject, NEVER, Observable, of, Subject } from 'rxjs';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { QRCodeComponent } from 'angularx-qrcode';
 
 import { LoginComponent } from './login.component';
 import { SseService } from '../../core/services/sse.service';
+import { LoginSessionService } from '../../core/services/login-session.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { TenantService } from '../../core/services/tenant.service';
 import { Theme } from '../../core/models/theme.model';
@@ -90,6 +91,10 @@ describe('LoginComponent', () => {
         {
           provide: TenantService,
           useValue: makeTenantService(tenantOverrides),
+        },
+        {
+          provide: LoginSessionService,
+          useValue: { abort: jest.fn().mockReturnValue(of(null)) }
         }
       ]
     }).overrideComponent(LoginComponent, {
@@ -542,60 +547,100 @@ describe('LoginComponent', () => {
       tick(3000);
     }));
 
-    it('canonical: redirects to /issuer/home 3 seconds after timeout', fakeAsync(() => {
+    function mockLocation() {
       Object.defineProperty(window, 'location', {
         value: { href: '' },
         writable: true,
         configurable: true
       });
+    }
 
-      createComponent({ state: 's123' }, { isCanonical: true, resolvedEnv: null });
+    function abortMock(): jest.Mock {
+      return TestBed.inject(LoginSessionService).abort as jest.Mock;
+    }
+
+    const RP_ERROR_REDIRECT =
+      'https://marketplace.dome.example/callback?error=access_denied&error_description=login_timeout&state=s123';
+
+    it('aborts the login at the Verifier with the state when the timeout elapses', fakeAsync(() => {
+      mockLocation();
+      createComponent({ state: 's123' });
       fixture.detectChanges();
 
-      tick(120_000 + 3000);
+      tick(119_999);
+      expect(abortMock()).not.toHaveBeenCalled();
 
-      expect(window.location.href).toBe('/issuer/home');
+      tick(1);
+      expect(abortMock()).toHaveBeenCalledWith('s123');
+
+      tick(3000);
+      component.ngOnDestroy();
+    }));
+
+    it('redirects to the client application returned by the Verifier 3 seconds after timeout', fakeAsync(() => {
+      mockLocation();
+      createComponent({ state: 's123' });
+      abortMock().mockReturnValue(of(RP_ERROR_REDIRECT));
+      fixture.detectChanges();
+
+      tick(120_000 + 2999);
+      expect(window.location.href).toBe('');
+
+      tick(1);
+      expect(window.location.href).toBe(RP_ERROR_REDIRECT);
 
       component.ngOnDestroy();
     }));
 
-    it('non-canonical: redirects to resolvedEnv.issuer/home 3 seconds after timeout', fakeAsync(() => {
-      Object.defineProperty(window, 'location', {
-        value: { href: '' },
-        writable: true,
-        configurable: true
-      });
+    it('waits for a slow Verifier response before redirecting', fakeAsync(() => {
+      mockLocation();
+      const response$ = new Subject<string | null>();
+      createComponent({ state: 's123' });
+      abortMock().mockReturnValue(response$);
+      fixture.detectChanges();
 
+      tick(120_000 + 5000);
+      expect(window.location.href).toBe('');
+
+      response$.next(RP_ERROR_REDIRECT);
+      response$.complete();
+      expect(window.location.href).toBe(RP_ERROR_REDIRECT);
+
+      component.ngOnDestroy();
+    }));
+
+    it('never falls back to the Issuer: stays on the expired screen when the origin is unknown', fakeAsync(() => {
+      mockLocation();
       const envConfig: CustomDomainEnv = {
         issuer: 'https://dome.stg.eudistack.net/issuer',
         verifier: 'https://dome.stg.eudistack.net/verifier',
         wallet: 'https://wallet.dome.eu',
       };
       createComponent({ state: 's123' }, { isCanonical: false, resolvedEnv: envConfig });
+      abortMock().mockReturnValue(of(null));
       fixture.detectChanges();
 
-      tick(120_000 + 3000);
+      tick(120_000 + 10_000);
+      fixture.detectChanges();
 
-      expect(window.location.href).toBe('https://dome.stg.eudistack.net/issuer/home');
+      expect(window.location.href).toBe('');
+      expect(component.timedOut).toBe(true);
+      expect(fixture.nativeElement.querySelector('.timeout-card')).toBeTruthy();
 
       component.ngOnDestroy();
     }));
 
-    it('non-canonical without resolvedEnv: falls back to /issuer/home', fakeAsync(() => {
-      Object.defineProperty(window, 'location', {
-        value: { href: '' },
-        writable: true,
-        configurable: true
-      });
-
-      createComponent({ state: 's123' }, { isCanonical: false, resolvedEnv: null });
+    it('cancels the pending redirect when the component is destroyed', fakeAsync(() => {
+      mockLocation();
+      createComponent({ state: 's123' });
+      abortMock().mockReturnValue(of(RP_ERROR_REDIRECT));
       fixture.detectChanges();
 
-      tick(120_000 + 3000);
-
-      expect(window.location.href).toBe('/issuer/home');
-
+      tick(120_000 + 1000);
       component.ngOnDestroy();
+      tick(2000);
+
+      expect(window.location.href).toBe('');
     }));
 
     it('should not redirect before timeout elapses', fakeAsync(() => {
@@ -714,6 +759,7 @@ describe('LoginComponent', () => {
             useValue: { observeTheme: () => localTheme$.asObservable(), sanitizeEmbedHtml: sanitizeEmbedHtmlImpl }
           },
           { provide: TenantService, useValue: makeTenantService() },
+          { provide: LoginSessionService, useValue: { abort: jest.fn().mockReturnValue(of(null)) } },
         ]
       }).overrideComponent(LoginComponent, {
         remove: { imports: [QRCodeComponent] },
@@ -823,6 +869,7 @@ describe('LoginComponent', () => {
             useValue: { observeTheme: () => localTheme$.asObservable(), sanitizeEmbedHtml }
           },
           { provide: TenantService, useValue: makeTenantService() },
+          { provide: LoginSessionService, useValue: { abort: jest.fn().mockReturnValue(of(null)) } },
         ]
       }).overrideComponent(LoginComponent, {
         remove: { imports: [QRCodeComponent] },

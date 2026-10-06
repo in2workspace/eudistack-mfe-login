@@ -2,6 +2,10 @@
 
 [Unreleased]
 
+### Fixed
+
+- **Al expirar el login por QR el usuario vuelve a la aplicación que lo inició, no al Issuer**: tras los 120 s, `login.component.ts` redirigía siempre a `{issuer}/home` (o `/issuer/home`), fuese cual fuese el cliente (Portal de emisión, Marketplace de DOME, cualquier RP). Ahora llama a `POST /api/login/abort` del Verifier (nuevo `LoginSessionService`), que invalida el login y devuelve el `redirect_uri` del cliente con `error=access_denied`; la redirección se hace a los 3 s (o cuando responda el Verifier, si tarda más) y se cancela si el componente se destruye. Si el Verifier no conoce el login o no responde, no hay redirección: se mantiene la pantalla de sesión expirada. Se elimina `ISSUER_HOME_PATH`. Requiere `eudistack-core-verifier` con el endpoint `abort`. Tests: `login-session.service.spec.ts`, bloque `timeout redirect` de `login.component.spec.ts` reescrito.
+
 ## [3.3.8] - 2026-09-28
 
 ### Fixed

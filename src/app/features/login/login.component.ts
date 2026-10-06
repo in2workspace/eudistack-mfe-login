@@ -4,15 +4,17 @@ import { ActivatedRoute } from '@angular/router';
 import { SafeHtml } from '@angular/platform-browser';
 import { QRCodeComponent } from 'angularx-qrcode';
 import { TranslateModule } from '@ngx-translate/core';
-import { Subscription, timer } from 'rxjs';
+import { forkJoin, Observable, Subscription, timer } from 'rxjs';
+import { map, switchMap, tap } from 'rxjs/operators';
 import { SseService } from '../../core/services/sse.service';
+import { LoginSessionService } from '../../core/services/login-session.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { TenantService } from '../../core/services/tenant.service';
 import { Theme } from '../../core/models/theme.model';
 
 const LOGIN_TIMEOUT_MS = 120_000;
 const LOGIN_TIMEOUT_SECONDS = LOGIN_TIMEOUT_MS / 1000;
-const ISSUER_HOME_PATH = '/issuer/home';
+const TIMEOUT_REDIRECT_DELAY_MS = 3000;
 
 @Component({
   selector: 'app-login',
@@ -44,6 +46,7 @@ export class LoginComponent implements OnInit, OnDestroy {
   private readonly onVisibilityChange = (): void => this.tickCountdown();
 
   private readonly tenantService = inject(TenantService);
+  private readonly loginSessionService = inject(LoginSessionService);
 
   constructor(
     private route: ActivatedRoute,
@@ -82,15 +85,13 @@ export class LoginComponent implements OnInit, OnDestroy {
 
       this.startCountdown();
 
-      this.timerSub = timer(LOGIN_TIMEOUT_MS).subscribe(() => {
-        this.waitingForVerification = false;
-        this.timedOut = true;
-        this.clearCountdown();
-        this.sseSub?.unsubscribe();
-        setTimeout(() => {
-          const resolvedEnv = this.tenantService.resolvedEnv();
-          window.location.href = resolvedEnv ? `${resolvedEnv.issuer}/home` : ISSUER_HOME_PATH;
-        }, 3000);
+      this.timerSub = timer(LOGIN_TIMEOUT_MS).pipe(
+        tap(() => this.markTimedOut()),
+        switchMap(() => this.resolveReturnUrl())
+      ).subscribe(returnUrl => {
+        if (returnUrl) {
+          window.location.href = returnUrl;
+        }
       });
     }
   }
@@ -123,6 +124,26 @@ export class LoginComponent implements OnInit, OnDestroy {
     if (!opened) {
       window.location.href = this.walletRedirectUrl;
     }
+  }
+
+  private markTimedOut(): void {
+    this.waitingForVerification = false;
+    this.timedOut = true;
+    this.clearCountdown();
+    this.sseSub?.unsubscribe();
+  }
+
+  /**
+   * Only the Verifier knows which application started the login, so the return
+   * URL comes from aborting the login there. Emits `null` when it is unknown:
+   * the user then stays on the expired screen instead of being sent elsewhere.
+   * Never emits before the expired message has been shown for a moment.
+   */
+  private resolveReturnUrl(): Observable<string | null> {
+    return forkJoin([
+      this.loginSessionService.abort(this.state),
+      timer(TIMEOUT_REDIRECT_DELAY_MS)
+    ]).pipe(map(([returnUrl]) => returnUrl));
   }
 
   /**
