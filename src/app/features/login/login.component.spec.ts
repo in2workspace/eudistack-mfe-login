@@ -325,18 +325,17 @@ describe('LoginComponent', () => {
       withViewport(originalWidth, originalHeight);
     });
 
-    it('should keep the QR at its floor on a 1920px FHD monitor', () => {
-      withViewport(1920);
+    const pinnedQrSizes: Array<[string, number, number]> = [
+      ['at its floor on a 1920px FHD monitor', 1920, 240],
+      ['at its floor on anything narrower than 1920px', 1440, 240],
+      ['at its ceiling on ultrawide viewports', 3840, 300],
+    ];
+
+    it.each(pinnedQrSizes)('should keep the QR %s', (_scenario, viewportWidth, expectedSize) => {
+      withViewport(viewportWidth);
       createComponent({ authRequest: 'abc' });
 
-      expect(component.qrSize()).toBe(240);
-    });
-
-    it('should keep the QR at its floor on anything narrower than 1920px', () => {
-      withViewport(1440);
-      createComponent({ authRequest: 'abc' });
-
-      expect(component.qrSize()).toBe(240);
+      expect(component.qrSize()).toBe(expectedSize);
     });
 
     it('should grow the QR only above 1920px', () => {
@@ -345,13 +344,6 @@ describe('LoginComponent', () => {
 
       expect(component.qrSize()).toBeGreaterThan(240);
       expect(component.qrSize()).toBeLessThan(300);
-    });
-
-    it('should cap the QR at its ceiling on ultrawide viewports', () => {
-      withViewport(3840);
-      createComponent({ authRequest: 'abc' });
-
-      expect(component.qrSize()).toBe(300);
     });
 
     it('should hold the QR back on a wide but short screen', fakeAsync(() => {
