@@ -93,6 +93,29 @@ describe('SseService', () => {
       expect(mockEventSource.close).toHaveBeenCalled();
     });
 
+    it('should close the EventSource before emitting the validation error', () => {
+      const order: string[] = [];
+      mockEventSource.close.mockImplementation(() => order.push('close'));
+      service.connect('s1').subscribe({ error: () => order.push('error') });
+
+      const call = mockEventSource.addEventListener.mock.calls.find(c => c[0] === 'validation_failed');
+      call![1]({ data: '{"code":"CREDENTIAL_REVOKED","message":"revoked"}' } as MessageEvent);
+
+      expect(order.slice(0, 2)).toEqual(['close', 'error']);
+    });
+
+    it('should deliver only the validation error when onerror fires after validation_failed', () => {
+      const errors: unknown[] = [];
+      service.connect('s1').subscribe({ error: err => errors.push(err) });
+
+      const call = mockEventSource.addEventListener.mock.calls.find(c => c[0] === 'validation_failed');
+      call![1]({ data: '{"code":"CREDENTIAL_REVOKED","message":"revoked"}' } as MessageEvent);
+      mockEventSource.onerror!({} as Event);
+
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toBeInstanceOf(SseValidationError);
+    });
+
     it('should emit SseValidationError with empty code on malformed validation_failed payload', () => {
       let receivedError: unknown = null;
       service.connect('s1').subscribe({ error: err => (receivedError = err) });
