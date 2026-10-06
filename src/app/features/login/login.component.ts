@@ -115,6 +115,9 @@ export class LoginComponent implements OnInit, OnDestroy {
     navigator.clipboard.writeText(this.authRequest).then(() => {
       this.copied = true;
       setTimeout(() => this.copied = false, 2000);
+    }).catch(() => {
+      // Clipboard unavailable (permission denied, insecure context): no "copied" feedback.
+      this.copied = false;
     });
   }
 
