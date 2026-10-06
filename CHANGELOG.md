@@ -2,6 +2,10 @@
 
 [Unreleased]
 
+### Fixed
+
+- **I-04 — login con credencial revocada muestra un mensaje explícito**: `SseService` ahora escucha el evento `validation_failed` del verifier y emite un `SseValidationError` con el `code`; antes solo escuchaba `redirect`, por lo que el cierre del emitter se interpretaba como fallo de conexión y se mostraba el error genérico. `LoginComponent` muestra `login.errorCredentialRevoked` (es/en/ca) para `CREDENTIAL_REVOKED`; el resto de códigos y los fallos de conexión mantienen `login.error`. Tests: `sse.service.spec.ts`, `login.component.spec.ts`.
+
 ## [3.3.8] - 2026-09-28
 
 ### Fixed

@@ -5,7 +5,7 @@ import { SafeHtml } from '@angular/platform-browser';
 import { QRCodeComponent } from 'angularx-qrcode';
 import { TranslateModule } from '@ngx-translate/core';
 import { Subscription, timer } from 'rxjs';
-import { SseService } from '../../core/services/sse.service';
+import { SseService, SseValidationError } from '../../core/services/sse.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { TenantService } from '../../core/services/tenant.service';
 import { Theme } from '../../core/models/theme.model';
@@ -73,9 +73,11 @@ export class LoginComponent implements OnInit, OnDestroy {
             window.location.href = redirectUrl;
           }, 800);
         },
-        error: () => {
+        error: (err: unknown) => {
           this.waitingForVerification = false;
-          this.errorMessage = 'login.error';
+          this.errorMessage = err instanceof SseValidationError && err.code === 'CREDENTIAL_REVOKED'
+            ? 'login.errorCredentialRevoked'
+            : 'login.error';
           this.clearCountdown();
         }
       });
