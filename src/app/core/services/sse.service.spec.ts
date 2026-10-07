@@ -126,6 +126,18 @@ describe('SseService', () => {
       expect((receivedError as SseValidationError).code).toBe('');
     });
 
+    it('should fall back to an empty code and default message when the payload has neither', () => {
+      let receivedError: unknown = null;
+      service.connect('s1').subscribe({ error: err => (receivedError = err) });
+
+      const call = mockEventSource.addEventListener.mock.calls.find(c => c[0] === 'validation_failed');
+      call![1]({ data: '{}' } as MessageEvent);
+
+      expect(receivedError).toBeInstanceOf(SseValidationError);
+      expect((receivedError as SseValidationError).code).toBe('');
+      expect((receivedError as SseValidationError).message).toBe('Validation failed');
+    });
+
     it('should close EventSource on unsubscribe', () => {
       const sub = service.connect('s1').subscribe();
 
