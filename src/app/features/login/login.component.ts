@@ -1,10 +1,12 @@
-import { Component, inject, OnInit, OnDestroy, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { Component, computed, inject, OnInit, OnDestroy, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { SafeHtml } from '@angular/platform-browser';
 import { QRCodeComponent } from 'angularx-qrcode';
 import { TranslateModule } from '@ngx-translate/core';
-import { Subscription, timer } from 'rxjs';
+import { Subscription, fromEvent, timer } from 'rxjs';
+import { debounceTime, map } from 'rxjs/operators';
 import { SseService } from '../../core/services/sse.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { TenantService } from '../../core/services/tenant.service';
@@ -13,6 +15,15 @@ import { Theme } from '../../core/models/theme.model';
 const LOGIN_TIMEOUT_MS = 120_000;
 const LOGIN_TIMEOUT_SECONDS = LOGIN_TIMEOUT_MS / 1000;
 const ISSUER_HOME_PATH = '/issuer/home';
+
+const CONTENT_MIN_WIDTH_PX = 760;
+const CONTENT_MAX_WIDTH_PX = 1180;
+const CONTENT_WIDTH_VW_RATIO = 0.396;
+const CONTENT_WIDTH_VH_RATIO = 0.85;
+const QR_MIN_SIZE_PX = 240;
+const QR_MAX_SIZE_PX = 300;
+const QR_FRAME_ALLOWANCE_PX = 36;
+const RESIZE_DEBOUNCE_MS = 120;
 
 @Component({
   selector: 'app-login',
@@ -35,6 +46,27 @@ export class LoginComponent implements OnInit, OnDestroy {
   showSuccess = false;
   remainingSeconds: number = LOGIN_TIMEOUT_SECONDS;
   countdownPercentage: number = 100;
+
+  private readonly viewport = toSignal(
+    fromEvent(window, 'resize').pipe(
+      debounceTime(RESIZE_DEBOUNCE_MS),
+      map(() => ({ width: window.innerWidth, height: window.innerHeight }))
+    ),
+    { initialValue: { width: window.innerWidth, height: window.innerHeight } }
+  );
+
+  readonly contentWidth = computed(() => {
+    const { width, height } = this.viewport();
+    const fluidWidth = Math.min(width * CONTENT_WIDTH_VW_RATIO, height * CONTENT_WIDTH_VH_RATIO);
+    return Math.min(Math.max(fluidWidth, CONTENT_MIN_WIDTH_PX), CONTENT_MAX_WIDTH_PX);
+  });
+
+  readonly qrSize = computed(() => {
+    const growth = (this.contentWidth() - CONTENT_MIN_WIDTH_PX) / (CONTENT_MAX_WIDTH_PX - CONTENT_MIN_WIDTH_PX);
+    return Math.round(QR_MIN_SIZE_PX + growth * (QR_MAX_SIZE_PX - QR_MIN_SIZE_PX));
+  });
+
+  readonly accessColumnMinWidth = computed(() => this.qrSize() + QR_FRAME_ALLOWANCE_PX);
 
   private sseSub?: Subscription;
   private timerSub?: Subscription;
@@ -111,10 +143,12 @@ export class LoginComponent implements OnInit, OnDestroy {
 
   copyAuthRequest(): void {
     if (!this.authRequest) return;
-    navigator.clipboard.writeText(this.authRequest).then(() => {
-      this.copied = true;
-      setTimeout(() => this.copied = false, 2000);
-    });
+    navigator.clipboard.writeText(this.authRequest)
+      .then(() => {
+        this.copied = true;
+        setTimeout(() => this.copied = false, 2000);
+      })
+      .catch(err => console.warn('Could not copy the access code to the clipboard.', err));
   }
 
   openWallet(): void {

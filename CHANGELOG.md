@@ -2,6 +2,10 @@
 
 [Unreleased]
 
+### Fixed
+
+- **Login QR was hard to scan and the screen ignored large monitors**: the QR now uses a lower error-correction level, so it holds fewer and therefore larger squares in the same space, and it no longer shrank silently when a narrow window squeezed its column. The login screen now also scales above 1920 px — content, text, icons and the QR grow proportionally, capped by the available height so nothing is pushed out of view. At 1920 px and below it looks exactly as before.
+
 ## [3.3.8] - 2026-09-28
 
 ### Fixed
