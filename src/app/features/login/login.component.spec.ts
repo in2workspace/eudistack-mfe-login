@@ -263,6 +263,23 @@ describe('LoginComponent', () => {
 
       expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
     });
+
+    it('should handle a rejected clipboard write instead of leaving it unhandled', fakeAsync(() => {
+      Object.assign(navigator, {
+        clipboard: { writeText: jest.fn().mockRejectedValue(new Error('NotAllowedError')) }
+      });
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+      createComponent({ authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' });
+      fixture.detectChanges();
+
+      component.copyAuthRequest();
+      tick();
+
+      expect(component.copied).toBe(false);
+      expect(warn).toHaveBeenCalled();
+
+      warn.mockRestore();
+    }));
   });
 
   // --- openWallet ---

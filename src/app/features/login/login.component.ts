@@ -143,10 +143,12 @@ export class LoginComponent implements OnInit, OnDestroy {
 
   copyAuthRequest(): void {
     if (!this.authRequest) return;
-    navigator.clipboard.writeText(this.authRequest).then(() => {
-      this.copied = true;
-      setTimeout(() => this.copied = false, 2000);
-    });
+    navigator.clipboard.writeText(this.authRequest)
+      .then(() => {
+        this.copied = true;
+        setTimeout(() => this.copied = false, 2000);
+      })
+      .catch(err => console.warn('Could not copy the access code to the clipboard.', err));
   }
 
   openWallet(): void {

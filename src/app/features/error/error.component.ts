@@ -42,9 +42,11 @@ export class ErrorComponent implements OnInit {
       `Request URL: ${this.originalRequestURL}`
     ].join('\n');
 
-    navigator.clipboard.writeText(text).then(() => {
-      this.copied = true;
-      setTimeout(() => this.copied = false, 2000);
-    });
+    navigator.clipboard.writeText(text)
+      .then(() => {
+        this.copied = true;
+        setTimeout(() => this.copied = false, 2000);
+      })
+      .catch(err => console.warn('Could not copy the error details to the clipboard.', err));
   }
 }
