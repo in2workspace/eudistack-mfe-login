@@ -263,6 +263,23 @@ describe('LoginComponent', () => {
 
       expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
     });
+
+    it('should handle a rejected clipboard write instead of leaving it unhandled', fakeAsync(() => {
+      Object.assign(navigator, {
+        clipboard: { writeText: jest.fn().mockRejectedValue(new Error('NotAllowedError')) }
+      });
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+      createComponent({ authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' });
+      fixture.detectChanges();
+
+      component.copyAuthRequest();
+      tick();
+
+      expect(component.copied).toBe(false);
+      expect(warn).toHaveBeenCalled();
+
+      warn.mockRestore();
+    }));
   });
 
   // --- openWallet ---
@@ -312,6 +329,72 @@ describe('LoginComponent', () => {
 
   // --- Template rendering ---
 
+  describe('fluid QR sizing', () => {
+    function withViewport(width: number, height: number = 1600): void {
+      Object.defineProperty(window, 'innerWidth', { value: width, writable: true, configurable: true });
+      Object.defineProperty(window, 'innerHeight', { value: height, writable: true, configurable: true });
+    }
+
+    const originalWidth = window.innerWidth;
+    const originalHeight = window.innerHeight;
+
+    afterEach(() => {
+      withViewport(originalWidth, originalHeight);
+    });
+
+    const pinnedQrSizes: Array<[string, number, number]> = [
+      ['at its floor on a 1920px FHD monitor', 1920, 240],
+      ['at its floor on anything narrower than 1920px', 1440, 240],
+      ['at its ceiling on ultrawide viewports', 3840, 300],
+    ];
+
+    it.each(pinnedQrSizes)('should keep the QR %s', (_scenario, viewportWidth, expectedSize) => {
+      withViewport(viewportWidth);
+      createComponent({ authRequest: 'abc' });
+
+      expect(component.qrSize()).toBe(expectedSize);
+    });
+
+    it('should grow the QR only above 1920px', () => {
+      withViewport(2560);
+      createComponent({ authRequest: 'abc' });
+
+      expect(component.qrSize()).toBeGreaterThan(240);
+      expect(component.qrSize()).toBeLessThan(300);
+    });
+
+    it('should hold the QR back on a wide but short screen', fakeAsync(() => {
+      withViewport(3440, 900);
+      createComponent({ authRequest: 'abc' });
+      const onShortScreen = component.qrSize();
+
+      withViewport(3440, 1600);
+      window.dispatchEvent(new Event('resize'));
+      tick(200);
+
+      expect(onShortScreen).toBeLessThan(component.qrSize());
+    }));
+
+    it('should never let the content outgrow the available height', () => {
+      withViewport(3840, 800);
+      createComponent({ authRequest: 'abc' });
+
+      expect(component.contentWidth()).toBeLessThan(1180);
+    });
+
+    it('should track the viewport when the window is resized', fakeAsync(() => {
+      withViewport(2200);
+      createComponent({ authRequest: 'abc' });
+      const initialSize = component.qrSize();
+
+      withViewport(3000);
+      window.dispatchEvent(new Event('resize'));
+      tick(200);
+
+      expect(component.qrSize()).toBeGreaterThan(initialSize);
+    }));
+  });
+
   describe('template', () => {
     it('should show the QR code', () => {
       createComponent({ authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' });
@@ -328,10 +411,28 @@ describe('LoginComponent', () => {
       const mockQr = fixture.debugElement.query(By.directive(MockQRCodeComponent))?.componentInstance as MockQRCodeComponent;
 
       expect(mockQr.qrdata).toBe('https://verifier.example.com/oid4vp/auth?nonce=abc');
-      expect(mockQr.width).toBe(220);
-      expect(mockQr.errorCorrectionLevel).toBe('H');
-      expect(mockQr.margin).toBe(3);
+      expect(mockQr.errorCorrectionLevel).toBe('L');
+      expect(mockQr.margin).toBe(1);
       expect(mockQr.elementType).toBe('svg');
+    });
+
+    it('should drive the QR width from the component rather than from CSS', () => {
+      createComponent({ authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' });
+      fixture.detectChanges();
+
+      const mockQr = fixture.debugElement.query(By.directive(MockQRCodeComponent))?.componentInstance as MockQRCodeComponent;
+
+      expect(mockQr.width).toBe(component.qrSize());
+    });
+
+    it('should reserve enough column width for the QR plus its frame', () => {
+      createComponent({ authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' });
+      fixture.detectChanges();
+
+      const accessColumn = fixture.nativeElement.querySelector('.access-column') as HTMLElement;
+
+      expect(component.accessColumnMinWidth()).toBeGreaterThan(component.qrSize());
+      expect(accessColumn.style.minWidth).toBe(`${component.accessColumnMinWidth()}px`);
     });
 
     it('should compose the contextual title from branding.name', () => {

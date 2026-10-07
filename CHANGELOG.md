@@ -5,6 +5,7 @@
 ### Fixed
 
 - **I-04 — login con credencial revocada muestra un mensaje explícito**: `SseService` ahora escucha el evento `validation_failed` del verifier y emite un `SseValidationError` con el `code`; antes solo escuchaba `redirect`, por lo que el cierre del emitter se interpretaba como fallo de conexión y se mostraba el error genérico. `LoginComponent` muestra `login.errorCredentialRevoked` (es/en/ca) para `CREDENTIAL_REVOKED`; el resto de códigos y los fallos de conexión mantienen `login.error`. Tests: `sse.service.spec.ts`, `login.component.spec.ts`.
+- **Login QR was hard to scan and the screen ignored large monitors**: the QR now uses a lower error-correction level, so it holds fewer and therefore larger squares in the same space, and it no longer shrank silently when a narrow window squeezed its column. The login screen now also scales above 1920 px — content, text, icons and the QR grow proportionally, capped by the available height so nothing is pushed out of view. At 1920 px and below it looks exactly as before.
 
 ## [3.3.8] - 2026-09-28
 
