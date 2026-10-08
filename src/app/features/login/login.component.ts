@@ -5,16 +5,17 @@ import { ActivatedRoute } from '@angular/router';
 import { SafeHtml } from '@angular/platform-browser';
 import { QRCodeComponent } from 'angularx-qrcode';
 import { TranslateModule } from '@ngx-translate/core';
-import { Subscription, fromEvent, timer } from 'rxjs';
-import { debounceTime, map } from 'rxjs/operators';
+import { forkJoin, fromEvent, Observable, Subscription, timer } from 'rxjs';
+import { debounceTime, map, switchMap, tap } from 'rxjs/operators';
 import { SseService, SseValidationError } from '../../core/services/sse.service';
+import { LoginSessionService } from '../../core/services/login-session.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { TenantService } from '../../core/services/tenant.service';
 import { Theme } from '../../core/models/theme.model';
 
 const LOGIN_TIMEOUT_MS = 120_000;
 const LOGIN_TIMEOUT_SECONDS = LOGIN_TIMEOUT_MS / 1000;
-const ISSUER_HOME_PATH = '/issuer/home';
+const TIMEOUT_REDIRECT_DELAY_MS = 3000;
 
 const CONTENT_MIN_WIDTH_PX = 760;
 const CONTENT_MAX_WIDTH_PX = 1180;
@@ -76,6 +77,7 @@ export class LoginComponent implements OnInit, OnDestroy {
   private readonly onVisibilityChange = (): void => this.tickCountdown();
 
   private readonly tenantService = inject(TenantService);
+  private readonly loginSessionService = inject(LoginSessionService);
 
   constructor(
     private route: ActivatedRoute,
@@ -98,6 +100,10 @@ export class LoginComponent implements OnInit, OnDestroy {
 
       this.sseSub = this.sseService.connect(this.state).subscribe({
         next: redirectUrl => {
+          // A completed login always wins, even one that lands after the countdown
+          // ended: cancel the pending abort/error redirect.
+          this.timerSub?.unsubscribe();
+          this.timedOut = false;
           this.waitingForVerification = false;
           this.showSuccess = true;
           this.clearCountdown();
@@ -106,6 +112,8 @@ export class LoginComponent implements OnInit, OnDestroy {
           }, 800);
         },
         error: (err: unknown) => {
+          // After the timeout the stream closing is expected: stay on the expired screen.
+          if (this.timedOut) return;
           this.waitingForVerification = false;
           this.errorMessage = err instanceof SseValidationError && err.code === 'CREDENTIAL_REVOKED'
             ? 'login.errorCredentialRevoked'
@@ -116,15 +124,14 @@ export class LoginComponent implements OnInit, OnDestroy {
 
       this.startCountdown();
 
-      this.timerSub = timer(LOGIN_TIMEOUT_MS).subscribe(() => {
-        this.waitingForVerification = false;
-        this.timedOut = true;
-        this.clearCountdown();
-        this.sseSub?.unsubscribe();
-        setTimeout(() => {
-          const resolvedEnv = this.tenantService.resolvedEnv();
-          window.location.href = resolvedEnv ? `${resolvedEnv.issuer}/home` : ISSUER_HOME_PATH;
-        }, 3000);
+      this.timerSub = timer(LOGIN_TIMEOUT_MS).pipe(
+        tap(() => this.markTimedOut()),
+        switchMap(() => this.resolveReturnUrl())
+      ).subscribe(returnUrl => {
+        if (returnUrl) {
+          this.sseSub?.unsubscribe();
+          window.location.href = returnUrl;
+        }
       });
     }
   }
@@ -159,6 +166,30 @@ export class LoginComponent implements OnInit, OnDestroy {
     if (!opened) {
       window.location.href = this.walletRedirectUrl;
     }
+  }
+
+  private markTimedOut(): void {
+    this.waitingForVerification = false;
+    this.timedOut = true;
+    this.clearCountdown();
+  }
+
+  /**
+   * Only the Verifier knows which application started the login, so the return
+   * URL comes from aborting the login there. Emits `null` when it is unknown:
+   * the user then stays on the expired screen instead of being sent elsewhere.
+   * Never emits before the expired message has been shown for a moment.
+   *
+   * The SSE stream stays open meanwhile: abort and completion are mutually
+   * exclusive at the Verifier, so if the abort finds nothing (`null`) a wallet
+   * presentation may be completing the login right now, and its redirect still
+   * wins. The Verifier closes the stream itself shortly after the timeout.
+   */
+  private resolveReturnUrl(): Observable<string | null> {
+    return forkJoin([
+      this.loginSessionService.abort(this.state),
+      timer(TIMEOUT_REDIRECT_DELAY_MS)
+    ]).pipe(map(([returnUrl]) => returnUrl));
   }
 
   /**
