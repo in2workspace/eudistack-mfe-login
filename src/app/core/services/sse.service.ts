@@ -2,6 +2,11 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
+/** Codes of the verifier's `validation_failed` SSE event that the login reacts to specifically. */
+export const SSE_VALIDATION_CODE = {
+  CREDENTIAL_REVOKED: 'CREDENTIAL_REVOKED',
+} as const;
+
 export class SseValidationError extends Error {
   constructor(readonly code: string, message: string) {
     super(message);
@@ -31,9 +36,9 @@ export class SseService {
           code = payload.code ?? '';
           message = payload.message ?? message;
         } catch {
-          // payload malformado: se trata como fallo de validación genérico
+          // Malformed payload: treated as a generic validation failure
         }
-        // Cerrar antes de emitir: evita que el cierre del emitter dispare onerror.
+        // Close before emitting: stops the emitter closing from triggering onerror.
         eventSource.close();
         subscriber.error(new SseValidationError(code, message));
       });
