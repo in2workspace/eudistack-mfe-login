@@ -5,10 +5,8 @@ import { ActivatedRoute } from '@angular/router';
 import { SafeHtml } from '@angular/platform-browser';
 import { QRCodeComponent } from 'angularx-qrcode';
 import { TranslateModule } from '@ngx-translate/core';
-import { Subscription, fromEvent, timer } from 'rxjs';
-import { debounceTime, map } from 'rxjs/operators';
-import { forkJoin, Observable, Subscription, timer } from 'rxjs';
-import { map, switchMap, tap } from 'rxjs/operators';
+import { forkJoin, fromEvent, Observable, Subscription, timer } from 'rxjs';
+import { debounceTime, map, switchMap, tap } from 'rxjs/operators';
 import { SseService } from '../../core/services/sse.service';
 import { LoginSessionService } from '../../core/services/login-session.service';
 import { ThemeService } from '../../core/services/theme.service';
@@ -151,13 +149,6 @@ export class LoginComponent implements OnInit, OnDestroy {
         setTimeout(() => this.copied = false, 2000);
       })
       .catch(err => console.warn('Could not copy the access code to the clipboard.', err));
-    navigator.clipboard.writeText(this.authRequest).then(() => {
-      this.copied = true;
-      setTimeout(() => this.copied = false, 2000);
-    }).catch(() => {
-      // Clipboard unavailable (permission denied, insecure context): no "copied" feedback.
-      this.copied = false;
-    });
   }
 
   openWallet(): void {
