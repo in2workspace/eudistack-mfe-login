@@ -21,6 +21,7 @@
   "login.timeout": "Sessió expirada. Si us plau, torna-ho a intentar.",
   "login.verified": "Verificat!",
   "login.error": "S'ha produït un error durant l'inici de sessió.",
+  "login.errorCredentialRevoked": "La credencial ha estat revocada i no és vàlida per accedir-hi.",
   "error.title": "Error d'autenticació",
   "error.message": "S'ha produït un error durant l'autenticació del client.",
   "error.details": "Detalls de l'error",

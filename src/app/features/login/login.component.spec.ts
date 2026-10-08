@@ -2,12 +2,12 @@ import { Component, Input } from '@angular/core';
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { By, DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { BehaviorSubject, NEVER, Observable, of, Subject } from 'rxjs';
+import { BehaviorSubject, NEVER, Observable, of, Subject, throwError } from 'rxjs';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { QRCodeComponent } from 'angularx-qrcode';
 
 import { LoginComponent } from './login.component';
-import { SseService } from '../../core/services/sse.service';
+import { SseService, SseValidationError } from '../../core/services/sse.service';
 import { LoginSessionService } from '../../core/services/login-session.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { TenantService } from '../../core/services/tenant.service';
@@ -856,6 +856,44 @@ describe('LoginComponent', () => {
 
       component.ngOnDestroy();
     }));
+  });
+
+  // --- SSE errors ---
+
+  describe('SSE errors', () => {
+    it('should show the revoked-credential message on CREDENTIAL_REVOKED', () => {
+      createComponent({ state: 's123' });
+      (TestBed.inject(SseService).connect as jest.Mock).mockReturnValue(
+        throwError(() => new SseValidationError('CREDENTIAL_REVOKED', 'revoked'))
+      );
+
+      fixture.detectChanges();
+
+      expect(component.errorMessage).toBe('login.errorCredentialRevoked');
+      expect(component.waitingForVerification).toBe(false);
+    });
+
+    it('should keep the generic message for other validation codes', () => {
+      createComponent({ state: 's123' });
+      (TestBed.inject(SseService).connect as jest.Mock).mockReturnValue(
+        throwError(() => new SseValidationError('SIGNATURE_INVALID', 'bad'))
+      );
+
+      fixture.detectChanges();
+
+      expect(component.errorMessage).toBe('login.error');
+    });
+
+    it('should keep the generic message on connection failure', () => {
+      createComponent({ state: 's123' });
+      (TestBed.inject(SseService).connect as jest.Mock).mockReturnValue(
+        throwError(() => new Error('SSE connection failed'))
+      );
+
+      fixture.detectChanges();
+
+      expect(component.errorMessage).toBe('login.error');
+    });
   });
 
   // --- Success state ---

@@ -21,6 +21,7 @@
   "login.timeout": "Session expired. Please try again.",
   "login.verified": "Verified!",
   "login.error": "An error occurred during login.",
+  "login.errorCredentialRevoked": "The credential has been revoked and is not valid for access.",
   "error.title": "Authentication Error",
   "error.message": "An error occurred during client authentication.",
   "error.details": "Error Details",
