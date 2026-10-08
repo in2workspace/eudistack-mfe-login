@@ -100,6 +100,10 @@ export class LoginComponent implements OnInit, OnDestroy {
 
       this.sseSub = this.sseService.connect(this.state).subscribe({
         next: redirectUrl => {
+          // A completed login always wins, even one that lands after the countdown
+          // ended: cancel the pending abort/error redirect.
+          this.timerSub?.unsubscribe();
+          this.timedOut = false;
           this.waitingForVerification = false;
           this.showSuccess = true;
           this.clearCountdown();
@@ -108,6 +112,8 @@ export class LoginComponent implements OnInit, OnDestroy {
           }, 800);
         },
         error: () => {
+          // After the timeout the stream closing is expected: stay on the expired screen.
+          if (this.timedOut) return;
           this.waitingForVerification = false;
           this.errorMessage = 'login.error';
           this.clearCountdown();
@@ -121,6 +127,7 @@ export class LoginComponent implements OnInit, OnDestroy {
         switchMap(() => this.resolveReturnUrl())
       ).subscribe(returnUrl => {
         if (returnUrl) {
+          this.sseSub?.unsubscribe();
           window.location.href = returnUrl;
         }
       });
@@ -163,7 +170,6 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.waitingForVerification = false;
     this.timedOut = true;
     this.clearCountdown();
-    this.sseSub?.unsubscribe();
   }
 
   /**
@@ -171,6 +177,11 @@ export class LoginComponent implements OnInit, OnDestroy {
    * URL comes from aborting the login there. Emits `null` when it is unknown:
    * the user then stays on the expired screen instead of being sent elsewhere.
    * Never emits before the expired message has been shown for a moment.
+   *
+   * The SSE stream stays open meanwhile: abort and completion are mutually
+   * exclusive at the Verifier, so if the abort finds nothing (`null`) a wallet
+   * presentation may be completing the login right now, and its redirect still
+   * wins. The Verifier closes the stream itself shortly after the timeout.
    */
   private resolveReturnUrl(): Observable<string | null> {
     return forkJoin([

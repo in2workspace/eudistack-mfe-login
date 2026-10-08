@@ -762,23 +762,99 @@ describe('LoginComponent', () => {
       component.ngOnDestroy();
     }));
 
-    it('should unsubscribe SSE connection on timeout', fakeAsync(() => {
-      let sseUnsubscribed = false;
-      createComponent({ state: 's123' });
+    // --- Wallet completing the login right at the timeout ---
 
-      const sseService = TestBed.inject(SseService);
-      (sseService.connect as jest.Mock).mockReturnValue(
-        new Observable(() => () => { sseUnsubscribed = true; })
+    const RP_SUCCESS_REDIRECT = 'https://marketplace.dome.example/callback?code=abc&state=s123';
+
+    function mockSse(): { events$: Subject<string>; isOpen: () => boolean } {
+      const events$ = new Subject<string>();
+      let open = false;
+      (TestBed.inject(SseService).connect as jest.Mock).mockReturnValue(
+        new Observable<string>(subscriber => {
+          open = true;
+          const sub = events$.subscribe(subscriber);
+          return () => { open = false; sub.unsubscribe(); };
+        })
       );
+      return { events$, isOpen: () => open };
+    }
 
+    it('keeps the SSE open while aborting and closes it once the Verifier returns the error redirect', fakeAsync(() => {
+      mockLocation();
+      createComponent({ state: 's123' });
+      const sse = mockSse();
+      abortMock().mockReturnValue(of(RP_ERROR_REDIRECT));
       fixture.detectChanges();
 
       tick(120_000);
+      expect(sse.isOpen()).toBe(true);
 
-      expect(sseUnsubscribed).toBe(true);
+      tick(3000);
+      expect(sse.isOpen()).toBe(false);
+      expect(window.location.href).toBe(RP_ERROR_REDIRECT);
 
       component.ngOnDestroy();
-      tick(3000);
+    }));
+
+    it('lets a login completed while the abort is in flight win over the error redirect', fakeAsync(() => {
+      mockLocation();
+      const abortResponse$ = new Subject<string | null>();
+      createComponent({ state: 's123' });
+      const sse = mockSse();
+      abortMock().mockReturnValue(abortResponse$);
+      fixture.detectChanges();
+
+      tick(120_000 + 1000);
+      sse.events$.next(RP_SUCCESS_REDIRECT);
+      fixture.detectChanges();
+
+      expect(component.timedOut).toBe(false);
+      expect(component.showSuccess).toBe(true);
+
+      abortResponse$.next(RP_ERROR_REDIRECT);
+      abortResponse$.complete();
+      tick(5000);
+
+      expect(window.location.href).toBe(RP_SUCCESS_REDIRECT);
+
+      component.ngOnDestroy();
+    }));
+
+    it('keeps listening when the abort finds no pending login, so a login completing late still redirects', fakeAsync(() => {
+      mockLocation();
+      createComponent({ state: 's123' });
+      const sse = mockSse();
+      abortMock().mockReturnValue(of(null));
+      fixture.detectChanges();
+
+      tick(120_000 + 3000 + 15_000);
+      expect(sse.isOpen()).toBe(true);
+      expect(component.timedOut).toBe(true);
+
+      sse.events$.next(RP_SUCCESS_REDIRECT);
+      tick(800);
+
+      expect(window.location.href).toBe(RP_SUCCESS_REDIRECT);
+
+      component.ngOnDestroy();
+    }));
+
+    it('stays on the expired screen, without an error, when the Verifier closes the SSE after the timeout', fakeAsync(() => {
+      mockLocation();
+      createComponent({ state: 's123' });
+      const sse = mockSse();
+      abortMock().mockReturnValue(of(null));
+      fixture.detectChanges();
+
+      tick(120_000 + 5000);
+      sse.events$.error(new Error('SSE connection failed'));
+      fixture.detectChanges();
+
+      expect(component.errorMessage).toBe('');
+      expect(component.timedOut).toBe(true);
+      expect(fixture.nativeElement.querySelector('.timeout-card')).toBeTruthy();
+
+      component.ngOnDestroy();
     }));
   });
 
