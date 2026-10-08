@@ -4,6 +4,10 @@
 
 ### Fixed
 
+- **Login QR was hard to scan and the screen ignored large monitors**: the QR now uses a lower error-correction level, so it holds fewer and therefore larger squares in the same space, and it no longer shrank silently when a narrow window squeezed its column. The login screen now also scales above 1920 px — content, text, icons and the QR grow proportionally, capped by the available height so nothing is pushed out of view. At 1920 px and below it looks exactly as before.
+
+### Fixed
+
 - **Al expirar el login por QR el usuario vuelve a la aplicación que lo inició, no al Issuer**: tras los 120 s, `login.component.ts` redirigía siempre a `{issuer}/home` (o `/issuer/home`), fuese cual fuese el cliente (Portal de emisión, Marketplace de DOME, cualquier RP). Ahora llama a `POST /api/login/abort` del Verifier (nuevo `LoginSessionService`), que invalida el login y devuelve el `redirect_uri` del cliente con `error=access_denied`; la redirección se hace a los 3 s (o cuando responda el Verifier, si tarda más) y se cancela si el componente se destruye. Si el Verifier no conoce el login o no responde, no hay redirección: se mantiene la pantalla de sesión expirada. Se elimina `ISSUER_HOME_PATH`. Requiere `eudistack-core-verifier` con el endpoint `abort`. Tests: `login-session.service.spec.ts`, bloque `timeout redirect` de `login.component.spec.ts` reescrito.
 
 ## [3.3.8] - 2026-09-28

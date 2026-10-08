@@ -59,16 +59,16 @@
           <div class="login-card-content">
 
             <!-- Access column: QR (desktop) / instruction text (mobile) + access code -->
-            <div class="access-column">
+            <div class="access-column" [style.min-width.px]="accessColumnMinWidth()">
 
               <!-- QR (hidden on mobile via CSS) -->
               <div class="qr-block">
                 <div class="qr-frame">
                   <qrcode
                     [qrdata]="authRequest"
-                    [width]="220"
-                    [errorCorrectionLevel]="'H'"
-                    [margin]="3"
+                    [width]="qrSize()"
+                    [errorCorrectionLevel]="'L'"
+                    [margin]="1"
                     [elementType]="'svg'">
                   </qrcode>
                 </div>
