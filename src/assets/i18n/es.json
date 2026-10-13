@@ -21,6 +21,7 @@
   "login.timeout": "Sesión expirada. Por favor, inténtalo de nuevo.",
   "login.verified": "¡Verificado!",
   "login.error": "Se ha producido un error durante el inicio de sesión.",
+  "login.errorCredentialRevoked": "La credencial ha sido revocada y no es válida para acceder.",
   "error.title": "Error de autenticación",
   "error.message": "Se ha producido un error durante la autenticación del cliente.",
   "error.details": "Detalles del error",

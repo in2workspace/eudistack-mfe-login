@@ -7,7 +7,7 @@ import { QRCodeComponent } from 'angularx-qrcode';
 import { TranslateModule } from '@ngx-translate/core';
 import { forkJoin, fromEvent, Observable, Subscription, timer } from 'rxjs';
 import { debounceTime, map, switchMap, tap } from 'rxjs/operators';
-import { SseService } from '../../core/services/sse.service';
+import { SSE_VALIDATION_CODE, SseService, SseValidationError } from '../../core/services/sse.service';
 import { LoginSessionService } from '../../core/services/login-session.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { TenantService } from '../../core/services/tenant.service';
@@ -111,11 +111,13 @@ export class LoginComponent implements OnInit, OnDestroy {
             window.location.href = redirectUrl;
           }, 800);
         },
-        error: () => {
+        error: (err: unknown) => {
           // After the timeout the stream closing is expected: stay on the expired screen.
           if (this.timedOut) return;
           this.waitingForVerification = false;
-          this.errorMessage = 'login.error';
+          this.errorMessage = err instanceof SseValidationError && err.code === SSE_VALIDATION_CODE.CREDENTIAL_REVOKED
+            ? 'login.errorCredentialRevoked'
+            : 'login.error';
           this.clearCountdown();
         }
       });
