@@ -10,6 +10,7 @@ import { debounceTime, map, switchMap, tap } from 'rxjs/operators';
 import { SSE_VALIDATION_CODE, SseService, SseValidationError } from '../../core/services/sse.service';
 import { LoginSessionService } from '../../core/services/login-session.service';
 import { LoginMethod, LoginMethodsService } from '../../core/services/login-methods.service';
+import { MethodSelectionComponent } from './method-selection/method-selection.component';
 import { ThemeService } from '../../core/services/theme.service';
 import { TenantService } from '../../core/services/tenant.service';
 import { Theme } from '../../core/models/theme.model';
@@ -29,10 +30,15 @@ const RESIZE_DEBOUNCE_MS = 120;
 
 export type LoginStep = 'loading' | 'methods' | 'wallet' | 'certificate' | 'validating' | 'error';
 
+const LEVEL_NOTICES: Record<string, string> = {
+  'http://eidas.europa.eu/LoA/high': 'login.methods.levelNotice.high',
+  'http://eidas.europa.eu/LoA/substantial': 'login.methods.levelNotice.substantial',
+};
+
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, QRCodeComponent, TranslateModule],
+  imports: [CommonModule, QRCodeComponent, TranslateModule, MethodSelectionComponent],
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.scss'],
   schemas: [CUSTOM_ELEMENTS_SCHEMA]
@@ -54,6 +60,8 @@ export class LoginComponent implements OnInit, OnDestroy {
   readonly step = signal<LoginStep>('wallet');
   readonly methods = signal<LoginMethod[]>([]);
   readonly essentialLevel = signal<string | null>(null);
+  readonly hasOtherMethods = computed(() => this.methods().length > 1);
+  readonly levelNoticeKey = computed(() => LEVEL_NOTICES[this.essentialLevel() ?? ''] ?? null);
 
   private readonly viewport = toSignal(
     fromEvent(window, 'resize').pipe(
@@ -80,6 +88,8 @@ export class LoginComponent implements OnInit, OnDestroy {
   private timerSub?: Subscription;
   private themeSub?: Subscription;
   private methodsSub?: Subscription;
+  private walletRequestSub?: Subscription;
+  private abortSub?: Subscription;
   private countdownInterval?: ReturnType<typeof setInterval>;
   private countdownDeadline = 0;
   private readonly onVisibilityChange = (): void => this.tickCountdown();
@@ -143,6 +153,48 @@ export class LoginComponent implements OnInit, OnDestroy {
     }
   }
 
+  chooseMethod(method: LoginMethod): void {
+    if (method === 'wallet') {
+      this.requestWallet();
+    } else {
+      this.step.set('certificate');
+    }
+  }
+
+  changeMethod(): void {
+    this.leaveWalletStep();
+    this.step.set('methods');
+  }
+
+  backToApplication(): void {
+    this.abortSub = this.loginSessionService.abort(this.state).subscribe(returnUrl => {
+      if (returnUrl) {
+        window.location.href = returnUrl;
+      } else {
+        this.showError('login.error');
+      }
+    });
+  }
+
+  private requestWallet(): void {
+    this.step.set('loading');
+    this.walletRequestSub = this.loginMethodsService.startWallet(this.state).subscribe({
+      next: ({ authRequest }) => {
+        this.authRequest = authRequest;
+        this.enterWalletStep();
+      },
+      error: () => this.showError('login.error')
+    });
+  }
+
+  private leaveWalletStep(): void {
+    this.sseSub?.unsubscribe();
+    this.timerSub?.unsubscribe();
+    this.clearCountdown();
+    this.waitingForVerification = false;
+    this.timedOut = false;
+  }
+
   private loadMethods(): void {
     this.step.set('loading');
     this.methodsSub = this.loginMethodsService.getMethods(this.state).subscribe({
@@ -153,7 +205,11 @@ export class LoginComponent implements OnInit, OnDestroy {
         }
         this.methods.set(methods);
         this.essentialLevel.set(essential_level ?? null);
-        this.step.set(methods.length === 1 && methods[0] === 'x509' ? 'certificate' : 'methods');
+        if (methods.length === 1) {
+          this.chooseMethod(methods[0]);
+        } else {
+          this.step.set('methods');
+        }
       },
       error: () => this.showError('login.error')
     });
@@ -267,6 +323,8 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.timerSub?.unsubscribe();
     this.themeSub?.unsubscribe();
     this.methodsSub?.unsubscribe();
+    this.walletRequestSub?.unsubscribe();
+    this.abortSub?.unsubscribe();
     this.clearCountdown();
   }
 }

@@ -35,8 +35,23 @@
         </div>
       </div>
 
+      <ng-container *ngIf="step() === 'methods'">
+        <h1 class="signin-title">{{ 'login.methods.title' | translate }}</h1>
+        <app-method-selection
+          [methods]="methods()"
+          [levelNoticeKey]="levelNoticeKey()"
+          (methodChosen)="chooseMethod($event)"
+          (backToApplication)="backToApplication()">
+        </app-method-selection>
+      </ng-container>
+
       <!-- QR card -->
       <ng-container *ngIf="step() === 'wallet' && !timedOut && !errorMessage && !showSuccess">
+
+        <button type="button" class="change-method" *ngIf="hasOtherMethods()" (click)="changeMethod()">
+          <ion-icon name="chevron-back-outline" aria-hidden="true"></ion-icon>
+          <span>{{ 'login.changeMethod' | translate }}</span>
+        </button>
 
         <!-- Contextual title built from the tenant identity (branding.name) -->
         <h1 class="signin-title">{{ 'login.title' | translate:{ name: theme.branding.name } }}</h1>

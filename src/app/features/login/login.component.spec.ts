@@ -100,7 +100,10 @@ describe('LoginComponent', () => {
         },
         {
           provide: LoginMethodsService,
-          useValue: { getMethods: jest.fn().mockReturnValue(methods$) }
+          useValue: {
+            getMethods: jest.fn().mockReturnValue(methods$),
+            startWallet: jest.fn().mockReturnValue(NEVER)
+          }
         }
       ]
     }).overrideComponent(LoginComponent, {
@@ -110,6 +113,10 @@ describe('LoginComponent', () => {
 
     fixture = TestBed.createComponent(LoginComponent);
     component = fixture.componentInstance;
+  }
+
+  function startWalletMock(): jest.Mock {
+    return TestBed.inject(LoginMethodsService).startWallet as jest.Mock;
   }
 
   afterEach(() => {
@@ -231,11 +238,170 @@ describe('LoginComponent', () => {
       expect(fixture.debugElement.query(By.css('.error-card'))).toBeTruthy();
     });
 
+    it('asks for the wallet request straight away when the wallet is the only method', () => {
+      createComponent({ state: 's123' }, {}, of({ methods: ['wallet'] }));
+      startWalletMock().mockReturnValue(of({ authRequest: 'openid4vp://request', expires_in: 120 }));
+      fixture.detectChanges();
+
+      expect(startWalletMock()).toHaveBeenCalledWith('s123');
+      expect(component.step()).toBe('wallet');
+    });
+
     it('moves the wallet step to error when the SSE reports a failure', () => {
       createComponent({ authRequest: 'openid4vp://request', state: 's123' });
       (TestBed.inject(SseService).connect as jest.Mock).mockReturnValue(throwError(() => new Error('boom')));
       fixture.detectChanges();
 
+      expect(component.step()).toBe('error');
+    });
+  });
+
+  describe('method selection', () => {
+    const HIGH = 'http://eidas.europa.eu/LoA/high';
+    const RP_ERROR_REDIRECT = 'https://portal.example.com/callback?error=access_denied&state=s123';
+
+    function showSelection(essentialLevel?: string) {
+      createComponent({ state: 's123' }, {}, of({ methods: ['x509', 'wallet'], essential_level: essentialLevel }));
+      fixture.detectChanges();
+    }
+
+    function mockLocation() {
+      Object.defineProperty(window, 'location', {
+        value: { href: '' },
+        writable: true,
+        configurable: true
+      });
+    }
+
+    function optionTitles(): string[] {
+      return fixture.debugElement.queryAll(By.css('.method-option .method-title'))
+        .map(el => el.nativeElement.textContent.trim());
+    }
+
+    it('lists the methods in the order the Verifier returns them', () => {
+      showSelection();
+
+      expect(optionTitles()).toEqual(['login.methods.x509.title', 'login.methods.wallet.title']);
+    });
+
+    it('does not ask for the wallet request until the wallet is chosen', () => {
+      showSelection();
+
+      expect(startWalletMock()).not.toHaveBeenCalled();
+      expect(TestBed.inject(SseService).connect).not.toHaveBeenCalled();
+    });
+
+    it('shows the level notice when the application requires a level as essential', () => {
+      showSelection(HIGH);
+
+      const notice = fixture.debugElement.query(By.css('.level-notice'));
+      expect(notice.nativeElement.textContent).toContain('login.methods.levelNotice.high');
+    });
+
+    it('hides the level notice when the application requires no level', () => {
+      showSelection();
+
+      expect(fixture.debugElement.query(By.css('.level-notice'))).toBeNull();
+    });
+
+    it('hides the level notice for a level that is not an eIDAS level', () => {
+      showSelection('urn:example:loa:4');
+
+      expect(fixture.debugElement.query(By.css('.level-notice'))).toBeNull();
+    });
+
+    it('creates the wallet request and shows the QR with its countdown when the wallet is chosen', () => {
+      showSelection();
+      startWalletMock().mockReturnValue(of({ authRequest: 'openid4vp://chosen', expires_in: 120 }));
+
+      component.chooseMethod('wallet');
+      fixture.detectChanges();
+
+      expect(startWalletMock()).toHaveBeenCalledWith('s123');
+      expect(component.step()).toBe('wallet');
+      expect(component.authRequest).toBe('openid4vp://chosen');
+      expect(TestBed.inject(SseService).connect).toHaveBeenCalledWith('s123');
+      expect(component.waitingForVerification).toBe(true);
+      expect(fixture.debugElement.query(By.css('qrcode'))).toBeTruthy();
+      component.ngOnDestroy();
+    });
+
+    it('shows the skeleton while the wallet request is being created', () => {
+      showSelection();
+      startWalletMock().mockReturnValue(NEVER);
+
+      component.chooseMethod('wallet');
+      fixture.detectChanges();
+
+      expect(component.step()).toBe('loading');
+      expect(fixture.debugElement.query(By.css('.skeleton-card'))).toBeTruthy();
+    });
+
+    it('shows the error when the wallet request cannot be created', () => {
+      showSelection();
+      startWalletMock().mockReturnValue(throwError(() => ({ status: 409 })));
+
+      component.chooseMethod('wallet');
+      fixture.detectChanges();
+
+      expect(component.step()).toBe('error');
+      expect(fixture.debugElement.query(By.css('.error-card'))).toBeTruthy();
+    });
+
+    it('goes to the certificate step without asking for the wallet request when the certificate is chosen', () => {
+      showSelection();
+
+      fixture.debugElement.queryAll(By.css('.method-option'))[0].nativeElement.click();
+
+      expect(component.step()).toBe('certificate');
+      expect(startWalletMock()).not.toHaveBeenCalled();
+    });
+
+    it('returns to the selection from the QR, closing the SSE and the countdown', fakeAsync(() => {
+      mockLocation();
+      const events$ = new Subject<string>();
+      showSelection();
+      (TestBed.inject(SseService).connect as jest.Mock).mockReturnValue(events$.asObservable());
+      startWalletMock().mockReturnValue(of({ authRequest: 'openid4vp://chosen', expires_in: 120 }));
+      component.chooseMethod('wallet');
+      fixture.detectChanges();
+
+      fixture.debugElement.query(By.css('.change-method')).nativeElement.click();
+      fixture.detectChanges();
+
+      expect(component.step()).toBe('methods');
+      expect(events$.observed).toBe(false);
+      expect(component.waitingForVerification).toBe(false);
+      tick(120_000);
+      expect(TestBed.inject(LoginSessionService).abort).not.toHaveBeenCalled();
+    }));
+
+    it('hides «Cambiar de método» on the QR when the application offers only the wallet', () => {
+      createComponent({ authRequest: 'openid4vp://request', state: 's123' });
+      fixture.detectChanges();
+
+      expect(fixture.debugElement.query(By.css('.change-method'))).toBeNull();
+    });
+
+    it('returns to the application with the error redirect from the Verifier', () => {
+      mockLocation();
+      showSelection();
+      (TestBed.inject(LoginSessionService).abort as jest.Mock).mockReturnValue(of(RP_ERROR_REDIRECT));
+
+      fixture.debugElement.query(By.css('.back-to-application')).nativeElement.click();
+
+      expect(TestBed.inject(LoginSessionService).abort).toHaveBeenCalledWith('s123');
+      expect(window.location.href).toBe(RP_ERROR_REDIRECT);
+    });
+
+    it('shows the error when the Verifier no longer knows the login to return to', () => {
+      mockLocation();
+      showSelection();
+
+      component.backToApplication();
+      fixture.detectChanges();
+
+      expect(window.location.href).toBe('');
       expect(component.step()).toBe('error');
     });
   });

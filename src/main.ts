@@ -9,6 +9,10 @@ import {
   openOutline,
   copyOutline,
   checkmarkOutline,
+  idCardOutline,
+  chevronForwardOutline,
+  chevronBackOutline,
+  informationCircleOutline,
 } from 'ionicons/icons';
 import { appConfig } from './app/app.config';
 import { AppComponent } from './app/app.component';
@@ -26,6 +30,10 @@ addIcons({
   'open-outline': openOutline,
   'copy-outline': copyOutline,
   'checkmark-outline': checkmarkOutline,
+  'id-card-outline': idCardOutline,
+  'chevron-forward-outline': chevronForwardOutline,
+  'chevron-back-outline': chevronBackOutline,
+  'information-circle-outline': informationCircleOutline,
 });
 
 bootstrapApplication(AppComponent, appConfig)
