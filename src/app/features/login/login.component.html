@@ -12,7 +12,7 @@
   <div class="container">
 
     <!-- Skeleton loader while theme is loading -->
-    <ng-container *ngIf="!theme">
+    <ng-container *ngIf="!theme || step() === 'loading'">
       <div class="card skeleton-card">
         <div class="skeleton skeleton-title"></div>
         <div class="skeleton skeleton-line"></div>
@@ -22,7 +22,7 @@
       </div>
     </ng-container>
 
-    <ng-container *ngIf="theme">
+    <ng-container *ngIf="theme && step() !== 'loading'">
 
       <!-- Success overlay -->
       <div class="success-overlay" *ngIf="showSuccess" role="status" aria-live="polite">
@@ -36,7 +36,7 @@
       </div>
 
       <!-- QR card -->
-      <ng-container *ngIf="!timedOut && !errorMessage && !showSuccess">
+      <ng-container *ngIf="step() === 'wallet' && !timedOut && !errorMessage && !showSuccess">
 
         <!-- Contextual title built from the tenant identity (branding.name) -->
         <h1 class="signin-title">{{ 'login.title' | translate:{ name: theme.branding.name } }}</h1>

@@ -95,7 +95,7 @@
 // — Access column (QR / access code) —
 .access-column { display: flex; flex-direction: column; align-items: center; gap: 10px; flex: 0 0 auto; }
 .qr-block { display: flex; flex-direction: column; align-items: center; gap: 10px; }
-.qr-frame { padding: 8px; border-radius: 12px; background-color: var(--primary-contrast-color); }
+.qr-frame { padding: 8px; border-radius: 12px; background-color: #ffffff; }
 .access-caption { font-size: var(--login-small-size); font-weight: 600; text-align: center; }
 .access-subcaption { font-size: var(--login-small-size); opacity: 0.75; }
 .mobile-instruction { display: none; font-size: 15px; line-height: 1.5; text-align: center; margin: 0; }

@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnInit, OnDestroy, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { Component, computed, inject, OnInit, OnDestroy, CUSTOM_ELEMENTS_SCHEMA, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
@@ -9,6 +9,7 @@ import { forkJoin, fromEvent, Observable, Subscription, timer } from 'rxjs';
 import { debounceTime, map, switchMap, tap } from 'rxjs/operators';
 import { SSE_VALIDATION_CODE, SseService, SseValidationError } from '../../core/services/sse.service';
 import { LoginSessionService } from '../../core/services/login-session.service';
+import { LoginMethod, LoginMethodsService } from '../../core/services/login-methods.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { TenantService } from '../../core/services/tenant.service';
 import { Theme } from '../../core/models/theme.model';
@@ -25,6 +26,8 @@ const QR_MIN_SIZE_PX = 240;
 const QR_MAX_SIZE_PX = 300;
 const QR_FRAME_ALLOWANCE_PX = 36;
 const RESIZE_DEBOUNCE_MS = 120;
+
+export type LoginStep = 'loading' | 'methods' | 'wallet' | 'certificate' | 'validating' | 'error';
 
 @Component({
   selector: 'app-login',
@@ -47,6 +50,10 @@ export class LoginComponent implements OnInit, OnDestroy {
   showSuccess = false;
   remainingSeconds: number = LOGIN_TIMEOUT_SECONDS;
   countdownPercentage: number = 100;
+
+  readonly step = signal<LoginStep>('wallet');
+  readonly methods = signal<LoginMethod[]>([]);
+  readonly essentialLevel = signal<string | null>(null);
 
   private readonly viewport = toSignal(
     fromEvent(window, 'resize').pipe(
@@ -72,12 +79,14 @@ export class LoginComponent implements OnInit, OnDestroy {
   private sseSub?: Subscription;
   private timerSub?: Subscription;
   private themeSub?: Subscription;
+  private methodsSub?: Subscription;
   private countdownInterval?: ReturnType<typeof setInterval>;
   private countdownDeadline = 0;
   private readonly onVisibilityChange = (): void => this.tickCountdown();
 
   private readonly tenantService = inject(TenantService);
   private readonly loginSessionService = inject(LoginSessionService);
+  private readonly loginMethodsService = inject(LoginMethodsService);
 
   constructor(
     private route: ActivatedRoute,
@@ -95,44 +104,10 @@ export class LoginComponent implements OnInit, OnDestroy {
       this.footerHtml = this.themeService.sanitizeEmbedHtml(t?.content?.footerEmbedCode);
     });
 
-    if (this.state) {
-      this.waitingForVerification = true;
-
-      this.sseSub = this.sseService.connect(this.state).subscribe({
-        next: redirectUrl => {
-          // A completed login always wins, even one that lands after the countdown
-          // ended: cancel the pending abort/error redirect.
-          this.timerSub?.unsubscribe();
-          this.timedOut = false;
-          this.waitingForVerification = false;
-          this.showSuccess = true;
-          this.clearCountdown();
-          setTimeout(() => {
-            window.location.href = redirectUrl;
-          }, 800);
-        },
-        error: (err: unknown) => {
-          // After the timeout the stream closing is expected: stay on the expired screen.
-          if (this.timedOut) return;
-          this.waitingForVerification = false;
-          this.errorMessage = err instanceof SseValidationError && err.code === SSE_VALIDATION_CODE.CREDENTIAL_REVOKED
-            ? 'login.errorCredentialRevoked'
-            : 'login.error';
-          this.clearCountdown();
-        }
-      });
-
-      this.startCountdown();
-
-      this.timerSub = timer(LOGIN_TIMEOUT_MS).pipe(
-        tap(() => this.markTimedOut()),
-        switchMap(() => this.resolveReturnUrl())
-      ).subscribe(returnUrl => {
-        if (returnUrl) {
-          this.sseSub?.unsubscribe();
-          window.location.href = returnUrl;
-        }
-      });
+    if (this.state && !this.authRequest) {
+      this.loadMethods();
+    } else if (this.state) {
+      this.enterWalletStep();
     }
   }
 
@@ -166,6 +141,68 @@ export class LoginComponent implements OnInit, OnDestroy {
     if (!opened) {
       window.location.href = this.walletRedirectUrl;
     }
+  }
+
+  private loadMethods(): void {
+    this.step.set('loading');
+    this.methodsSub = this.loginMethodsService.getMethods(this.state).subscribe({
+      next: ({ methods, essential_level }) => {
+        if (methods.length === 0) {
+          this.showError('login.error');
+          return;
+        }
+        this.methods.set(methods);
+        this.essentialLevel.set(essential_level ?? null);
+        this.step.set(methods.length === 1 && methods[0] === 'x509' ? 'certificate' : 'methods');
+      },
+      error: () => this.showError('login.error')
+    });
+  }
+
+  private showError(messageKey: string): void {
+    this.errorMessage = messageKey;
+    this.step.set('error');
+  }
+
+  private enterWalletStep(): void {
+    this.step.set('wallet');
+    this.waitingForVerification = true;
+
+    this.sseSub = this.sseService.connect(this.state).subscribe({
+      next: redirectUrl => {
+        // A completed login always wins, even one that lands after the countdown
+        // ended: cancel the pending abort/error redirect.
+        this.timerSub?.unsubscribe();
+        this.timedOut = false;
+        this.waitingForVerification = false;
+        this.showSuccess = true;
+        this.clearCountdown();
+        setTimeout(() => {
+          window.location.href = redirectUrl;
+        }, 800);
+      },
+      error: (err: unknown) => {
+        // After the timeout the stream closing is expected: stay on the expired screen.
+        if (this.timedOut) return;
+        this.waitingForVerification = false;
+        this.showError(err instanceof SseValidationError && err.code === SSE_VALIDATION_CODE.CREDENTIAL_REVOKED
+          ? 'login.errorCredentialRevoked'
+          : 'login.error');
+        this.clearCountdown();
+      }
+    });
+
+    this.startCountdown();
+
+    this.timerSub = timer(LOGIN_TIMEOUT_MS).pipe(
+      tap(() => this.markTimedOut()),
+      switchMap(() => this.resolveReturnUrl())
+    ).subscribe(returnUrl => {
+      if (returnUrl) {
+        this.sseSub?.unsubscribe();
+        window.location.href = returnUrl;
+      }
+    });
   }
 
   private markTimedOut(): void {
@@ -229,6 +266,7 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.sseSub?.unsubscribe();
     this.timerSub?.unsubscribe();
     this.themeSub?.unsubscribe();
+    this.methodsSub?.unsubscribe();
     this.clearCountdown();
   }
 }

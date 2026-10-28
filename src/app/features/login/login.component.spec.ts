@@ -9,6 +9,7 @@ import { QRCodeComponent } from 'angularx-qrcode';
 import { LoginComponent } from './login.component';
 import { SseService, SseValidationError } from '../../core/services/sse.service';
 import { LoginSessionService } from '../../core/services/login-session.service';
+import { LoginMethods, LoginMethodsService } from '../../core/services/login-methods.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { TenantService } from '../../core/services/tenant.service';
 import { Theme } from '../../core/models/theme.model';
@@ -62,7 +63,8 @@ describe('LoginComponent', () => {
 
   function createComponent(
     queryParams: Record<string, string> = {},
-    tenantOverrides: { isCanonical?: boolean; resolvedEnv?: CustomDomainEnv | null } = {}
+    tenantOverrides: { isCanonical?: boolean; resolvedEnv?: CustomDomainEnv | null } = {},
+    methods$: Observable<LoginMethods> = NEVER
   ) {
     theme$ = new BehaviorSubject<Theme | null>(baseTheme);
 
@@ -95,6 +97,10 @@ describe('LoginComponent', () => {
         {
           provide: LoginSessionService,
           useValue: { abort: jest.fn().mockReturnValue(of(null)) }
+        },
+        {
+          provide: LoginMethodsService,
+          useValue: { getMethods: jest.fn().mockReturnValue(methods$) }
         }
       ]
     }).overrideComponent(LoginComponent, {
@@ -138,7 +144,7 @@ describe('LoginComponent', () => {
     });
 
     it('should connect SSE when state is provided', () => {
-      createComponent({ state: 's123' });
+      createComponent({ authRequest: 'openid4vp://request', state: 's123' });
       fixture.detectChanges();
 
       const sseService = TestBed.inject(SseService);
@@ -151,6 +157,86 @@ describe('LoginComponent', () => {
 
       const sseService = TestBed.inject(SseService);
       expect(sseService.connect).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('login steps', () => {
+    it('starts on the wallet step without asking for the methods when the address carries authRequest', () => {
+      createComponent({ authRequest: 'openid4vp://request', state: 's123' });
+      fixture.detectChanges();
+
+      expect(component.step()).toBe('wallet');
+      expect(TestBed.inject(LoginMethodsService).getMethods).not.toHaveBeenCalled();
+      expect(fixture.debugElement.query(By.css('qrcode'))).toBeTruthy();
+    });
+
+    it('asks for the methods of the login when the address carries only state', () => {
+      createComponent({ state: 's123' });
+      fixture.detectChanges();
+
+      expect(TestBed.inject(LoginMethodsService).getMethods).toHaveBeenCalledWith('s123');
+    });
+
+    it('shows the skeleton and neither the QR nor the SSE while the methods are loading', () => {
+      createComponent({ state: 's123' });
+      fixture.detectChanges();
+
+      expect(component.step()).toBe('loading');
+      expect(fixture.debugElement.query(By.css('.skeleton-card'))).toBeTruthy();
+      expect(fixture.debugElement.query(By.css('qrcode'))).toBeNull();
+      expect(TestBed.inject(SseService).connect).not.toHaveBeenCalled();
+    });
+
+    it('goes to the method selection when the login offers two or more methods', () => {
+      createComponent({ state: 's123' }, {}, of({ methods: ['x509', 'wallet'] }));
+      fixture.detectChanges();
+
+      expect(component.step()).toBe('methods');
+      expect(component.methods()).toEqual(['x509', 'wallet']);
+      expect(component.essentialLevel()).toBeNull();
+    });
+
+    it('keeps the essential level the application requires', () => {
+      createComponent(
+        { state: 's123' }, {},
+        of({ methods: ['x509', 'wallet'], essential_level: 'http://eidas.europa.eu/LoA/high' })
+      );
+      fixture.detectChanges();
+
+      expect(component.essentialLevel()).toBe('http://eidas.europa.eu/LoA/high');
+    });
+
+    it('goes straight to the certificate when it is the only method', () => {
+      createComponent({ state: 's123' }, {}, of({ methods: ['x509'] }));
+      fixture.detectChanges();
+
+      expect(component.step()).toBe('certificate');
+      expect(TestBed.inject(SseService).connect).not.toHaveBeenCalled();
+    });
+
+    it('shows the error when the login offers no method', () => {
+      createComponent({ state: 's123' }, {}, of({ methods: [] }));
+      fixture.detectChanges();
+
+      expect(component.step()).toBe('error');
+      expect(fixture.debugElement.query(By.css('.error-card'))).toBeTruthy();
+    });
+
+    it('shows the error when the Verifier does not know the login', () => {
+      createComponent({ state: 's123' }, {}, throwError(() => ({ status: 404 })));
+      fixture.detectChanges();
+
+      expect(component.step()).toBe('error');
+      expect(component.errorMessage).toBe('login.error');
+      expect(fixture.debugElement.query(By.css('.error-card'))).toBeTruthy();
+    });
+
+    it('moves the wallet step to error when the SSE reports a failure', () => {
+      createComponent({ authRequest: 'openid4vp://request', state: 's123' });
+      (TestBed.inject(SseService).connect as jest.Mock).mockReturnValue(throwError(() => new Error('boom')));
+      fixture.detectChanges();
+
+      expect(component.step()).toBe('error');
     });
   });
 
@@ -521,7 +607,7 @@ describe('LoginComponent', () => {
     });
 
     it('should decrement remainingSeconds when state is provided', fakeAsync(() => {
-      createComponent({ state: 's123' });
+      createComponent({ authRequest: 'openid4vp://request', state: 's123' });
       fixture.detectChanges();
 
       tick(3000);
@@ -536,7 +622,7 @@ describe('LoginComponent', () => {
     // (90s elapsed of the 120s window) must land on the exact wall-clock
     // value, not drift from missed/coalesced ticks.
     it('should be exactly 30 seconds remaining after 90 of the 120 seconds elapse', fakeAsync(() => {
-      createComponent({ state: 's123' });
+      createComponent({ authRequest: 'openid4vp://request', state: 's123' });
       fixture.detectChanges();
 
       tick(90_000);
@@ -569,7 +655,7 @@ describe('LoginComponent', () => {
       }) as unknown as typeof setInterval);
       jest.spyOn(window, 'clearInterval').mockImplementation(() => undefined);
 
-      createComponent({ state: 's123' });
+      createComponent({ authRequest: 'openid4vp://request', state: 's123' });
       fixture.detectChanges();
 
       expect(component.remainingSeconds).toBe(120);
@@ -592,7 +678,7 @@ describe('LoginComponent', () => {
       jest.spyOn(window, 'setInterval').mockImplementation((() => 1) as unknown as typeof setInterval);
       jest.spyOn(window, 'clearInterval').mockImplementation(() => undefined);
 
-      createComponent({ state: 's123' });
+      createComponent({ authRequest: 'openid4vp://request', state: 's123' });
       fixture.detectChanges();
 
       expect(component.remainingSeconds).toBe(120);
@@ -607,7 +693,7 @@ describe('LoginComponent', () => {
     });
 
     it('should not clear the interval before remainingSeconds reaches 0, absent success/error/timeout', fakeAsync(() => {
-      createComponent({ state: 's123' });
+      createComponent({ authRequest: 'openid4vp://request', state: 's123' });
       fixture.detectChanges();
 
       tick(119_000);
@@ -622,7 +708,7 @@ describe('LoginComponent', () => {
     it('should remove the visibilitychange listener when the countdown is cleared on destroy', () => {
       const removeSpy = jest.spyOn(document, 'removeEventListener');
 
-      createComponent({ state: 's123' });
+      createComponent({ authRequest: 'openid4vp://request', state: 's123' });
       fixture.detectChanges();
 
       component.ngOnDestroy();
@@ -636,7 +722,7 @@ describe('LoginComponent', () => {
 
   describe('timeout redirect', () => {
     it('should set timedOut to true and stop waiting after 120 seconds', fakeAsync(() => {
-      createComponent({ state: 's123' });
+      createComponent({ authRequest: 'openid4vp://request', state: 's123' });
       fixture.detectChanges();
 
       tick(120_000);
@@ -665,7 +751,7 @@ describe('LoginComponent', () => {
 
     it('aborts the login at the Verifier with the state when the timeout elapses', fakeAsync(() => {
       mockLocation();
-      createComponent({ state: 's123' });
+      createComponent({ authRequest: 'openid4vp://request', state: 's123' });
       fixture.detectChanges();
 
       tick(119_999);
@@ -680,7 +766,7 @@ describe('LoginComponent', () => {
 
     it('redirects to the client application returned by the Verifier 3 seconds after timeout', fakeAsync(() => {
       mockLocation();
-      createComponent({ state: 's123' });
+      createComponent({ authRequest: 'openid4vp://request', state: 's123' });
       abortMock().mockReturnValue(of(RP_ERROR_REDIRECT));
       fixture.detectChanges();
 
@@ -696,7 +782,7 @@ describe('LoginComponent', () => {
     it('waits for a slow Verifier response before redirecting', fakeAsync(() => {
       mockLocation();
       const response$ = new Subject<string | null>();
-      createComponent({ state: 's123' });
+      createComponent({ authRequest: 'openid4vp://request', state: 's123' });
       abortMock().mockReturnValue(response$);
       fixture.detectChanges();
 
@@ -717,7 +803,7 @@ describe('LoginComponent', () => {
         verifier: 'https://dome.stg.eudistack.net/verifier',
         wallet: 'https://wallet.dome.eu',
       };
-      createComponent({ state: 's123' }, { isCanonical: false, resolvedEnv: envConfig });
+      createComponent({ authRequest: 'openid4vp://request', state: 's123' }, { isCanonical: false, resolvedEnv: envConfig });
       abortMock().mockReturnValue(of(null));
       fixture.detectChanges();
 
@@ -733,7 +819,7 @@ describe('LoginComponent', () => {
 
     it('cancels the pending redirect when the component is destroyed', fakeAsync(() => {
       mockLocation();
-      createComponent({ state: 's123' });
+      createComponent({ authRequest: 'openid4vp://request', state: 's123' });
       abortMock().mockReturnValue(of(RP_ERROR_REDIRECT));
       fixture.detectChanges();
 
@@ -751,7 +837,7 @@ describe('LoginComponent', () => {
         configurable: true
       });
 
-      createComponent({ state: 's123' });
+      createComponent({ authRequest: 'openid4vp://request', state: 's123' });
       fixture.detectChanges();
 
       tick(119_999);
@@ -781,7 +867,7 @@ describe('LoginComponent', () => {
 
     it('keeps the SSE open while aborting and closes it once the Verifier returns the error redirect', fakeAsync(() => {
       mockLocation();
-      createComponent({ state: 's123' });
+      createComponent({ authRequest: 'openid4vp://request', state: 's123' });
       const sse = mockSse();
       abortMock().mockReturnValue(of(RP_ERROR_REDIRECT));
       fixture.detectChanges();
@@ -799,7 +885,7 @@ describe('LoginComponent', () => {
     it('lets a login completed while the abort is in flight win over the error redirect', fakeAsync(() => {
       mockLocation();
       const abortResponse$ = new Subject<string | null>();
-      createComponent({ state: 's123' });
+      createComponent({ authRequest: 'openid4vp://request', state: 's123' });
       const sse = mockSse();
       abortMock().mockReturnValue(abortResponse$);
       fixture.detectChanges();
@@ -822,7 +908,7 @@ describe('LoginComponent', () => {
 
     it('keeps listening when the abort finds no pending login, so a login completing late still redirects', fakeAsync(() => {
       mockLocation();
-      createComponent({ state: 's123' });
+      createComponent({ authRequest: 'openid4vp://request', state: 's123' });
       const sse = mockSse();
       abortMock().mockReturnValue(of(null));
       fixture.detectChanges();
@@ -841,7 +927,7 @@ describe('LoginComponent', () => {
 
     it('stays on the expired screen, without an error, when the Verifier closes the SSE after the timeout', fakeAsync(() => {
       mockLocation();
-      createComponent({ state: 's123' });
+      createComponent({ authRequest: 'openid4vp://request', state: 's123' });
       const sse = mockSse();
       abortMock().mockReturnValue(of(null));
       fixture.detectChanges();
@@ -862,7 +948,7 @@ describe('LoginComponent', () => {
 
   describe('SSE errors', () => {
     it('should show the revoked-credential message on CREDENTIAL_REVOKED', () => {
-      createComponent({ state: 's123' });
+      createComponent({ authRequest: 'openid4vp://request', state: 's123' });
       (TestBed.inject(SseService).connect as jest.Mock).mockReturnValue(
         throwError(() => new SseValidationError('CREDENTIAL_REVOKED', 'revoked'))
       );
@@ -874,7 +960,7 @@ describe('LoginComponent', () => {
     });
 
     it('should keep the generic message for other validation codes', () => {
-      createComponent({ state: 's123' });
+      createComponent({ authRequest: 'openid4vp://request', state: 's123' });
       (TestBed.inject(SseService).connect as jest.Mock).mockReturnValue(
         throwError(() => new SseValidationError('SIGNATURE_INVALID', 'bad'))
       );
@@ -885,7 +971,7 @@ describe('LoginComponent', () => {
     });
 
     it('should keep the generic message on connection failure', () => {
-      createComponent({ state: 's123' });
+      createComponent({ authRequest: 'openid4vp://request', state: 's123' });
       (TestBed.inject(SseService).connect as jest.Mock).mockReturnValue(
         throwError(() => new Error('SSE connection failed'))
       );
@@ -933,14 +1019,14 @@ describe('LoginComponent', () => {
 
   describe('ngOnDestroy', () => {
     it('should not throw when destroying component', () => {
-      createComponent({ state: 's123' });
+      createComponent({ authRequest: 'openid4vp://request', state: 's123' });
       fixture.detectChanges();
 
       expect(() => component.ngOnDestroy()).not.toThrow();
     });
 
     it('should clear countdown interval on destroy', fakeAsync(() => {
-      createComponent({ state: 's123' });
+      createComponent({ authRequest: 'openid4vp://request', state: 's123' });
       fixture.detectChanges();
 
       tick(2000);
@@ -975,6 +1061,7 @@ describe('LoginComponent', () => {
           },
           { provide: TenantService, useValue: makeTenantService() },
           { provide: LoginSessionService, useValue: { abort: jest.fn().mockReturnValue(of(null)) } },
+          { provide: LoginMethodsService, useValue: { getMethods: jest.fn().mockReturnValue(NEVER) } },
         ]
       }).overrideComponent(LoginComponent, {
         remove: { imports: [QRCodeComponent] },
@@ -1085,6 +1172,7 @@ describe('LoginComponent', () => {
           },
           { provide: TenantService, useValue: makeTenantService() },
           { provide: LoginSessionService, useValue: { abort: jest.fn().mockReturnValue(of(null)) } },
+          { provide: LoginMethodsService, useValue: { getMethods: jest.fn().mockReturnValue(NEVER) } },
         ]
       }).overrideComponent(LoginComponent, {
         remove: { imports: [QRCodeComponent] },
