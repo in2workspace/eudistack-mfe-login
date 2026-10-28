@@ -45,6 +45,24 @@
         </app-method-selection>
       </ng-container>
 
+      <app-certificate-step
+        *ngIf="step() === 'certificate'"
+        [canChangeMethod]="hasOtherMethods()"
+        (confirmed)="startCertificateLogin()"
+        (changeMethod)="changeMethod()"
+        (backToApplication)="backToApplication()">
+      </app-certificate-step>
+
+      <app-certificate-validating *ngIf="step() === 'validating'"></app-certificate-validating>
+
+      <app-certificate-error
+        *ngIf="step() === 'error' && certificateErrorReason() as reason"
+        [reason]="reason"
+        [canChangeMethod]="hasOtherMethods()"
+        (changeMethod)="changeMethod()"
+        (backToApplication)="backToApplication()">
+      </app-certificate-error>
+
       <!-- QR card -->
       <ng-container *ngIf="step() === 'wallet' && !timedOut && !errorMessage && !showSuccess">
 

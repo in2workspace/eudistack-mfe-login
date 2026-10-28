@@ -13,6 +13,7 @@ import {
   chevronForwardOutline,
   chevronBackOutline,
   informationCircleOutline,
+  alertCircleOutline,
 } from 'ionicons/icons';
 import { appConfig } from './app/app.config';
 import { AppComponent } from './app/app.component';
@@ -34,6 +35,7 @@ addIcons({
   'chevron-forward-outline': chevronForwardOutline,
   'chevron-back-outline': chevronBackOutline,
   'information-circle-outline': informationCircleOutline,
+  'alert-circle-outline': alertCircleOutline,
 });
 
 bootstrapApplication(AppComponent, appConfig)

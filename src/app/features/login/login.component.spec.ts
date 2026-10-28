@@ -10,6 +10,7 @@ import { LoginComponent } from './login.component';
 import { SseService, SseValidationError } from '../../core/services/sse.service';
 import { LoginSessionService } from '../../core/services/login-session.service';
 import { LoginMethods, LoginMethodsService } from '../../core/services/login-methods.service';
+import { CertificateLoginService } from '../../core/services/certificate-login.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { TenantService } from '../../core/services/tenant.service';
 import { Theme } from '../../core/models/theme.model';
@@ -104,6 +105,10 @@ describe('LoginComponent', () => {
             getMethods: jest.fn().mockReturnValue(methods$),
             startWallet: jest.fn().mockReturnValue(NEVER)
           }
+        },
+        {
+          provide: CertificateLoginService,
+          useValue: { login: jest.fn().mockReturnValue(NEVER) }
         }
       ]
     }).overrideComponent(LoginComponent, {
@@ -403,6 +408,181 @@ describe('LoginComponent', () => {
 
       expect(window.location.href).toBe('');
       expect(component.step()).toBe('error');
+    });
+  });
+
+  describe('certificate login', () => {
+    const REDIRECT = 'https://portal.example.com/cb?code=c1&state=s123';
+    const RP_ERROR_REDIRECT = 'https://portal.example.com/cb?error=access_denied&state=s123';
+
+    function mockLocation() {
+      Object.defineProperty(window, 'location', {
+        value: { href: '' },
+        writable: true,
+        configurable: true
+      });
+    }
+
+    function loginMock(): jest.Mock {
+      return TestBed.inject(CertificateLoginService).login as jest.Mock;
+    }
+
+    function showCertificate(methods: LoginMethods['methods'] = ['x509', 'wallet']) {
+      createComponent({ state: 's123' }, {}, of({ methods }));
+      fixture.detectChanges();
+      if (methods.length > 1) {
+        component.chooseMethod('x509');
+        fixture.detectChanges();
+      }
+    }
+
+    function click(selector: string) {
+      fixture.debugElement.query(By.css(selector)).nativeElement.click();
+      fixture.detectChanges();
+    }
+
+    function query(selector: string) {
+      return fixture.debugElement.query(By.css(selector));
+    }
+
+    it('shows the certificate step without calling the certificate address yet', () => {
+      showCertificate();
+
+      expect(query('app-certificate-step')).toBeTruthy();
+      expect(loginMock()).not.toHaveBeenCalled();
+    });
+
+    it('offers «Cambiar de método» when the application offers another method', () => {
+      showCertificate(['x509', 'wallet']);
+
+      expect(query('app-certificate-step .change-method')).toBeTruthy();
+    });
+
+    it('hides «Cambiar de método» when the certificate is the only method', () => {
+      showCertificate(['x509']);
+
+      expect(component.step()).toBe('certificate');
+      expect(query('app-certificate-step .change-method')).toBeNull();
+    });
+
+    it('calls the certificate address and shows the waiting step on «Continuar»', () => {
+      showCertificate();
+      loginMock().mockReturnValue(NEVER);
+
+      click('app-certificate-step .primary-action');
+
+      expect(loginMock()).toHaveBeenCalledWith('s123');
+      expect(component.step()).toBe('validating');
+      expect(query('app-certificate-validating')).toBeTruthy();
+    });
+
+    it('goes to the application with the code when the certificate is valid', () => {
+      mockLocation();
+      showCertificate();
+      loginMock().mockReturnValue(of({ redirectUri: REDIRECT }));
+
+      click('app-certificate-step .primary-action');
+
+      expect(window.location.href).toBe(REDIRECT);
+    });
+
+    it.each([
+      'CertificateMissing',
+      'CertificateNotQualified',
+      'CertificateNotNaturalPerson',
+      'CertificateExpired',
+      'CertificateRevoked',
+      'ValidationUnavailable',
+      'LevelNotMet',
+      'LoginNotFound',
+    ] as const)('shows the message of %s on the error step', reason => {
+      showCertificate();
+      loginMock().mockReturnValue(of({ reason }));
+
+      click('app-certificate-step .primary-action');
+
+      expect(component.step()).toBe('error');
+      expect(query('app-certificate-error .step-text').nativeElement.textContent)
+        .toContain(`login.certificate.reason.${reason}`);
+      expect(query('.error-card')).toBeNull();
+    });
+
+    it('offers no retry on the error step', () => {
+      showCertificate();
+      loginMock().mockReturnValue(of({ reason: 'CertificateRevoked' }));
+
+      click('app-certificate-step .primary-action');
+
+      const buttons = fixture.debugElement.queryAll(By.css('app-certificate-error button'))
+        .map(button => button.nativeElement.textContent.trim());
+      expect(buttons).toEqual(['login.backToApplication', 'login.changeMethod']);
+    });
+
+    it('returns to the selection from the error step, clearing the reason', () => {
+      showCertificate();
+      loginMock().mockReturnValue(of({ reason: 'CertificateNotNaturalPerson' }));
+      click('app-certificate-step .primary-action');
+
+      click('app-certificate-error .primary-action');
+
+      expect(component.step()).toBe('methods');
+      expect(component.certificateErrorReason()).toBeNull();
+      expect(query('app-method-selection')).toBeTruthy();
+    });
+
+    it('hides «Cambiar de método» on the error step when the certificate is the only method', () => {
+      showCertificate(['x509']);
+      loginMock().mockReturnValue(of({ reason: 'CertificateExpired' }));
+
+      click('app-certificate-step .primary-action');
+
+      expect(query('app-certificate-error .primary-action')).toBeNull();
+    });
+
+    it('returns to the application from the certificate step', () => {
+      mockLocation();
+      showCertificate();
+      (TestBed.inject(LoginSessionService).abort as jest.Mock).mockReturnValue(of(RP_ERROR_REDIRECT));
+
+      click('app-certificate-step .back-to-application');
+
+      expect(TestBed.inject(LoginSessionService).abort).toHaveBeenCalledWith('s123');
+      expect(window.location.href).toBe(RP_ERROR_REDIRECT);
+    });
+
+    it('returns to the application from the error step', () => {
+      mockLocation();
+      showCertificate();
+      loginMock().mockReturnValue(of({ reason: 'LevelNotMet' }));
+      click('app-certificate-step .primary-action');
+      (TestBed.inject(LoginSessionService).abort as jest.Mock).mockReturnValue(of(RP_ERROR_REDIRECT));
+
+      click('app-certificate-error .back-to-application');
+
+      expect(window.location.href).toBe(RP_ERROR_REDIRECT);
+    });
+
+    it('replaces the certificate error with the generic error when the login can no longer be aborted', () => {
+      mockLocation();
+      showCertificate();
+      loginMock().mockReturnValue(of({ reason: 'LoginNotFound' }));
+      click('app-certificate-step .primary-action');
+
+      click('app-certificate-error .back-to-application');
+
+      expect(query('app-certificate-error')).toBeNull();
+      expect(query('.error-card')).toBeTruthy();
+    });
+
+    it('cancels the certificate call when the component is destroyed', () => {
+      const pending = new Subject<never>();
+      showCertificate();
+      loginMock().mockReturnValue(pending.asObservable());
+      click('app-certificate-step .primary-action');
+
+      component.ngOnDestroy();
+
+      expect(pending.observed).toBe(false);
     });
   });
 
@@ -1228,6 +1408,7 @@ describe('LoginComponent', () => {
           { provide: TenantService, useValue: makeTenantService() },
           { provide: LoginSessionService, useValue: { abort: jest.fn().mockReturnValue(of(null)) } },
           { provide: LoginMethodsService, useValue: { getMethods: jest.fn().mockReturnValue(NEVER) } },
+          { provide: CertificateLoginService, useValue: { login: jest.fn().mockReturnValue(NEVER) } },
         ]
       }).overrideComponent(LoginComponent, {
         remove: { imports: [QRCodeComponent] },
@@ -1339,6 +1520,7 @@ describe('LoginComponent', () => {
           { provide: TenantService, useValue: makeTenantService() },
           { provide: LoginSessionService, useValue: { abort: jest.fn().mockReturnValue(of(null)) } },
           { provide: LoginMethodsService, useValue: { getMethods: jest.fn().mockReturnValue(NEVER) } },
+          { provide: CertificateLoginService, useValue: { login: jest.fn().mockReturnValue(NEVER) } },
         ]
       }).overrideComponent(LoginComponent, {
         remove: { imports: [QRCodeComponent] },

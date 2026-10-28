@@ -10,7 +10,11 @@ import { debounceTime, map, switchMap, tap } from 'rxjs/operators';
 import { SSE_VALIDATION_CODE, SseService, SseValidationError } from '../../core/services/sse.service';
 import { LoginSessionService } from '../../core/services/login-session.service';
 import { LoginMethod, LoginMethodsService } from '../../core/services/login-methods.service';
+import { CertificateLoginReason, CertificateLoginService } from '../../core/services/certificate-login.service';
 import { MethodSelectionComponent } from './method-selection/method-selection.component';
+import { CertificateStepComponent } from './certificate-step/certificate-step.component';
+import { CertificateValidatingComponent } from './certificate-validating/certificate-validating.component';
+import { CertificateErrorComponent } from './certificate-error/certificate-error.component';
 import { ThemeService } from '../../core/services/theme.service';
 import { TenantService } from '../../core/services/tenant.service';
 import { Theme } from '../../core/models/theme.model';
@@ -38,7 +42,15 @@ const LEVEL_NOTICES: Record<string, string> = {
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, QRCodeComponent, TranslateModule, MethodSelectionComponent],
+  imports: [
+    CommonModule,
+    QRCodeComponent,
+    TranslateModule,
+    MethodSelectionComponent,
+    CertificateStepComponent,
+    CertificateValidatingComponent,
+    CertificateErrorComponent
+  ],
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.scss'],
   schemas: [CUSTOM_ELEMENTS_SCHEMA]
@@ -62,6 +74,7 @@ export class LoginComponent implements OnInit, OnDestroy {
   readonly essentialLevel = signal<string | null>(null);
   readonly hasOtherMethods = computed(() => this.methods().length > 1);
   readonly levelNoticeKey = computed(() => LEVEL_NOTICES[this.essentialLevel() ?? ''] ?? null);
+  readonly certificateErrorReason = signal<CertificateLoginReason | null>(null);
 
   private readonly viewport = toSignal(
     fromEvent(window, 'resize').pipe(
@@ -90,6 +103,7 @@ export class LoginComponent implements OnInit, OnDestroy {
   private methodsSub?: Subscription;
   private walletRequestSub?: Subscription;
   private abortSub?: Subscription;
+  private certificateSub?: Subscription;
   private countdownInterval?: ReturnType<typeof setInterval>;
   private countdownDeadline = 0;
   private readonly onVisibilityChange = (): void => this.tickCountdown();
@@ -97,6 +111,7 @@ export class LoginComponent implements OnInit, OnDestroy {
   private readonly tenantService = inject(TenantService);
   private readonly loginSessionService = inject(LoginSessionService);
   private readonly loginMethodsService = inject(LoginMethodsService);
+  private readonly certificateLoginService = inject(CertificateLoginService);
 
   constructor(
     private route: ActivatedRoute,
@@ -163,7 +178,21 @@ export class LoginComponent implements OnInit, OnDestroy {
 
   changeMethod(): void {
     this.leaveWalletStep();
+    this.certificateSub?.unsubscribe();
+    this.certificateErrorReason.set(null);
     this.step.set('methods');
+  }
+
+  startCertificateLogin(): void {
+    this.step.set('validating');
+    this.certificateSub = this.certificateLoginService.login(this.state).subscribe(result => {
+      if ('redirectUri' in result) {
+        window.location.href = result.redirectUri;
+      } else {
+        this.certificateErrorReason.set(result.reason);
+        this.step.set('error');
+      }
+    });
   }
 
   backToApplication(): void {
@@ -216,6 +245,7 @@ export class LoginComponent implements OnInit, OnDestroy {
   }
 
   private showError(messageKey: string): void {
+    this.certificateErrorReason.set(null);
     this.errorMessage = messageKey;
     this.step.set('error');
   }
@@ -325,6 +355,7 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.methodsSub?.unsubscribe();
     this.walletRequestSub?.unsubscribe();
     this.abortSub?.unsubscribe();
+    this.certificateSub?.unsubscribe();
     this.clearCountdown();
   }
 }
