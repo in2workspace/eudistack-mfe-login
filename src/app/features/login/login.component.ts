@@ -2,6 +2,7 @@ import { Component, computed, inject, OnInit, OnDestroy, CUSTOM_ELEMENTS_SCHEMA,
 import { toSignal } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
+import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
 import { SafeHtml } from '@angular/platform-browser';
 import { QRCodeComponent } from 'angularx-qrcode';
 import { TranslateModule } from '@ngx-translate/core';
@@ -32,7 +33,7 @@ const QR_MAX_SIZE_PX = 300;
 const QR_FRAME_ALLOWANCE_PX = 36;
 const RESIZE_DEBOUNCE_MS = 120;
 
-export type LoginStep = 'loading' | 'methods' | 'wallet' | 'certificate' | 'validating' | 'error';
+export type LoginStep = 'loading' | 'methods' | 'wallet' | 'certificate' | 'validating' | 'expired' | 'error';
 
 const LEVEL_NOTICES: Record<string, string> = {
   'http://eidas.europa.eu/LoA/high': 'login.methods.levelNotice.high',
@@ -212,7 +213,25 @@ export class LoginComponent implements OnInit, OnDestroy {
         this.authRequest = authRequest;
         this.enterWalletStep(expires_in * 1000);
       },
-      error: () => this.showError('login.error')
+      error: (err: unknown) => this.handleLoginError(err)
+    });
+  }
+
+  private handleLoginError(err: unknown): void {
+    if (err instanceof HttpErrorResponse && err.status === HttpStatusCode.NotFound) {
+      this.expireLogin();
+    } else {
+      this.showError('login.error');
+    }
+  }
+
+  private expireLogin(): void {
+    this.markTimedOut();
+    this.step.set('expired');
+    this.timerSub = this.resolveReturnUrl().subscribe(returnUrl => {
+      if (returnUrl) {
+        window.location.href = returnUrl;
+      }
     });
   }
 
@@ -240,7 +259,7 @@ export class LoginComponent implements OnInit, OnDestroy {
           this.step.set('methods');
         }
       },
-      error: () => this.showError('login.error')
+      error: (err: unknown) => this.handleLoginError(err)
     });
   }
 

@@ -4,6 +4,7 @@ import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { By, DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { BehaviorSubject, NEVER, Observable, of, Subject, throwError } from 'rxjs';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { QRCodeComponent } from 'angularx-qrcode';
 
 import { LoginComponent } from './login.component';
@@ -234,8 +235,19 @@ describe('LoginComponent', () => {
       expect(fixture.debugElement.query(By.css('.error-card'))).toBeTruthy();
     });
 
-    it('shows the error when the Verifier does not know the login', () => {
-      createComponent({ state: 's123' }, {}, throwError(() => ({ status: 404 })));
+    it('shows the expired session when the Verifier no longer knows the login', fakeAsync(() => {
+      createComponent({ state: 's123' }, {}, throwError(() => new HttpErrorResponse({ status: 404 })));
+      fixture.detectChanges();
+
+      expect(component.step()).toBe('expired');
+      expect(component.timedOut).toBe(true);
+      expect(fixture.debugElement.query(By.css('.timeout-card'))).toBeTruthy();
+      expect(fixture.debugElement.query(By.css('.error-card'))).toBeNull();
+      tick(3000);
+    }));
+
+    it('shows the error when the methods cannot be loaded for another reason', () => {
+      createComponent({ state: 's123' }, {}, throwError(() => new HttpErrorResponse({ status: 500 })));
       fixture.detectChanges();
 
       expect(component.step()).toBe('error');
@@ -344,7 +356,7 @@ describe('LoginComponent', () => {
 
     it('shows the error when the wallet request cannot be created', () => {
       showSelection();
-      startWalletMock().mockReturnValue(throwError(() => ({ status: 409 })));
+      startWalletMock().mockReturnValue(throwError(() => new HttpErrorResponse({ status: 409 })));
 
       component.chooseMethod('wallet');
       fixture.detectChanges();
@@ -352,6 +364,38 @@ describe('LoginComponent', () => {
       expect(component.step()).toBe('error');
       expect(fixture.debugElement.query(By.css('.error-card'))).toBeTruthy();
     });
+
+    it('shows the expired session and returns to the application when the login expired on the selection', fakeAsync(() => {
+      mockLocation();
+      showSelection();
+      (TestBed.inject(LoginSessionService).abort as jest.Mock).mockReturnValue(of(RP_ERROR_REDIRECT));
+      startWalletMock().mockReturnValue(throwError(() => new HttpErrorResponse({ status: 404 })));
+
+      component.chooseMethod('wallet');
+      fixture.detectChanges();
+
+      expect(fixture.debugElement.query(By.css('.timeout-card'))).toBeTruthy();
+      expect(fixture.debugElement.query(By.css('app-method-selection'))).toBeNull();
+      expect(TestBed.inject(LoginSessionService).abort).toHaveBeenCalledWith('s123');
+      expect(window.location.href).toBe('');
+
+      tick(3000);
+      expect(window.location.href).toBe(RP_ERROR_REDIRECT);
+    }));
+
+    it('stays on the expired session when the Verifier cannot say where to return', fakeAsync(() => {
+      mockLocation();
+      showSelection();
+      startWalletMock().mockReturnValue(throwError(() => new HttpErrorResponse({ status: 404 })));
+
+      component.chooseMethod('wallet');
+      fixture.detectChanges();
+      tick(3000);
+      fixture.detectChanges();
+
+      expect(window.location.href).toBe('');
+      expect(fixture.debugElement.query(By.css('.timeout-card'))).toBeTruthy();
+    }));
 
     it('goes to the certificate step without asking for the wallet request when the certificate is chosen', () => {
       showSelection();
