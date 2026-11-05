@@ -381,6 +381,51 @@ describe('LoginComponent', () => {
       expect(TestBed.inject(LoginSessionService).abort).not.toHaveBeenCalled();
     }));
 
+    it('starts the countdown from the time the login has left, not from the full time', fakeAsync(() => {
+      showSelection();
+      startWalletMock().mockReturnValue(of({ authRequest: 'openid4vp://chosen', expires_in: 60 }));
+
+      component.chooseMethod('wallet');
+      fixture.detectChanges();
+
+      expect(component.remainingSeconds).toBe(60);
+      expect(component.countdownPercentage).toBe(50);
+      component.ngOnDestroy();
+    }));
+
+    it('times out when the time the login has left runs out', fakeAsync(() => {
+      mockLocation();
+      showSelection();
+      startWalletMock().mockReturnValue(of({ authRequest: 'openid4vp://chosen', expires_in: 60 }));
+      component.chooseMethod('wallet');
+      fixture.detectChanges();
+
+      tick(59_999);
+      expect(component.timedOut).toBe(false);
+
+      tick(1);
+      expect(component.timedOut).toBe(true);
+      expect(TestBed.inject(LoginSessionService).abort).toHaveBeenCalledWith('s123');
+      tick(3000);
+      component.ngOnDestroy();
+    }));
+
+    it('keeps the time already spent when returning to the wallet after changing method', fakeAsync(() => {
+      showSelection();
+      startWalletMock().mockReturnValue(of({ authRequest: 'openid4vp://chosen', expires_in: 120 }));
+      component.chooseMethod('wallet');
+      fixture.detectChanges();
+      tick(60_000);
+      component.changeMethod();
+      startWalletMock().mockReturnValue(of({ authRequest: 'openid4vp://chosen', expires_in: 60 }));
+
+      component.chooseMethod('wallet');
+      fixture.detectChanges();
+
+      expect(component.remainingSeconds).toBe(60);
+      component.ngOnDestroy();
+    }));
+
     it('hides «Cambiar de método» on the QR when the application offers only the wallet', () => {
       createComponent({ authRequest: 'openid4vp://request', state: 's123' });
       fixture.detectChanges();

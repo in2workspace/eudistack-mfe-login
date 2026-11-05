@@ -208,9 +208,9 @@ export class LoginComponent implements OnInit, OnDestroy {
   private requestWallet(): void {
     this.step.set('loading');
     this.walletRequestSub = this.loginMethodsService.startWallet(this.state).subscribe({
-      next: ({ authRequest }) => {
+      next: ({ authRequest, expires_in }) => {
         this.authRequest = authRequest;
-        this.enterWalletStep();
+        this.enterWalletStep(expires_in * 1000);
       },
       error: () => this.showError('login.error')
     });
@@ -250,7 +250,7 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.step.set('error');
   }
 
-  private enterWalletStep(): void {
+  private enterWalletStep(timeoutMs: number = LOGIN_TIMEOUT_MS): void {
     this.step.set('wallet');
     this.waitingForVerification = true;
 
@@ -278,9 +278,9 @@ export class LoginComponent implements OnInit, OnDestroy {
       }
     });
 
-    this.startCountdown();
+    this.startCountdown(timeoutMs);
 
-    this.timerSub = timer(LOGIN_TIMEOUT_MS).pipe(
+    this.timerSub = timer(timeoutMs).pipe(
       tap(() => this.markTimedOut()),
       switchMap(() => this.resolveReturnUrl())
     ).subscribe(returnUrl => {
@@ -324,8 +324,8 @@ export class LoginComponent implements OnInit, OnDestroy {
    * `Date.now()` on every tick, and immediately on `visibilitychange`, makes
    * the displayed value self-correct instead of slowly catching up.
    */
-  private startCountdown(): void {
-    this.countdownDeadline = Date.now() + LOGIN_TIMEOUT_MS;
+  private startCountdown(timeoutMs: number): void {
+    this.countdownDeadline = Date.now() + timeoutMs;
     this.tickCountdown();
     this.countdownInterval = setInterval(() => this.tickCountdown(), 1000);
     document.addEventListener('visibilitychange', this.onVisibilityChange);
@@ -334,7 +334,7 @@ export class LoginComponent implements OnInit, OnDestroy {
   private tickCountdown(): void {
     const remainingMs = Math.max(0, this.countdownDeadline - Date.now());
     this.remainingSeconds = Math.ceil(remainingMs / 1000);
-    this.countdownPercentage = (remainingMs / LOGIN_TIMEOUT_MS) * 100;
+    this.countdownPercentage = Math.min(100, (remainingMs / LOGIN_TIMEOUT_MS) * 100);
     if (remainingMs <= 0) {
       this.clearCountdown();
     }
