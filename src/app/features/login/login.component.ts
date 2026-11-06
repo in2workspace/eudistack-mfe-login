@@ -1,7 +1,8 @@
-import { Component, computed, inject, OnInit, OnDestroy, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { Component, computed, inject, OnInit, OnDestroy, CUSTOM_ELEMENTS_SCHEMA, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
+import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
 import { SafeHtml } from '@angular/platform-browser';
 import { QRCodeComponent } from 'angularx-qrcode';
 import { TranslateModule } from '@ngx-translate/core';
@@ -9,6 +10,12 @@ import { forkJoin, fromEvent, Observable, Subscription, timer } from 'rxjs';
 import { debounceTime, map, switchMap, tap } from 'rxjs/operators';
 import { SSE_VALIDATION_CODE, SseService, SseValidationError } from '../../core/services/sse.service';
 import { LoginSessionService } from '../../core/services/login-session.service';
+import { LoginMethod, LoginMethodsService } from '../../core/services/login-methods.service';
+import { CertificateLoginReason, CertificateLoginService } from '../../core/services/certificate-login.service';
+import { MethodSelectionComponent } from './method-selection/method-selection.component';
+import { CertificateStepComponent } from './certificate-step/certificate-step.component';
+import { CertificateValidatingComponent } from './certificate-validating/certificate-validating.component';
+import { CertificateErrorComponent } from './certificate-error/certificate-error.component';
 import { ThemeService } from '../../core/services/theme.service';
 import { TenantService } from '../../core/services/tenant.service';
 import { Theme } from '../../core/models/theme.model';
@@ -26,10 +33,25 @@ const QR_MAX_SIZE_PX = 300;
 const QR_FRAME_ALLOWANCE_PX = 36;
 const RESIZE_DEBOUNCE_MS = 120;
 
+export type LoginStep = 'loading' | 'methods' | 'wallet' | 'certificate' | 'validating' | 'expired' | 'error';
+
+const LEVEL_NOTICES: Record<string, string> = {
+  'http://eidas.europa.eu/LoA/high': 'login.methods.levelNotice.high',
+  'http://eidas.europa.eu/LoA/substantial': 'login.methods.levelNotice.substantial',
+};
+
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, QRCodeComponent, TranslateModule],
+  imports: [
+    CommonModule,
+    QRCodeComponent,
+    TranslateModule,
+    MethodSelectionComponent,
+    CertificateStepComponent,
+    CertificateValidatingComponent,
+    CertificateErrorComponent
+  ],
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.scss'],
   schemas: [CUSTOM_ELEMENTS_SCHEMA]
@@ -47,6 +69,13 @@ export class LoginComponent implements OnInit, OnDestroy {
   showSuccess = false;
   remainingSeconds: number = LOGIN_TIMEOUT_SECONDS;
   countdownPercentage: number = 100;
+
+  readonly step = signal<LoginStep>('wallet');
+  readonly methods = signal<LoginMethod[]>([]);
+  readonly essentialLevel = signal<string | null>(null);
+  readonly hasOtherMethods = computed(() => this.methods().length > 1);
+  readonly levelNoticeKey = computed(() => LEVEL_NOTICES[this.essentialLevel() ?? ''] ?? null);
+  readonly certificateErrorReason = signal<CertificateLoginReason | null>(null);
 
   private readonly viewport = toSignal(
     fromEvent(window, 'resize').pipe(
@@ -72,12 +101,18 @@ export class LoginComponent implements OnInit, OnDestroy {
   private sseSub?: Subscription;
   private timerSub?: Subscription;
   private themeSub?: Subscription;
+  private methodsSub?: Subscription;
+  private walletRequestSub?: Subscription;
+  private abortSub?: Subscription;
+  private certificateSub?: Subscription;
   private countdownInterval?: ReturnType<typeof setInterval>;
   private countdownDeadline = 0;
   private readonly onVisibilityChange = (): void => this.tickCountdown();
 
   private readonly tenantService = inject(TenantService);
   private readonly loginSessionService = inject(LoginSessionService);
+  private readonly loginMethodsService = inject(LoginMethodsService);
+  private readonly certificateLoginService = inject(CertificateLoginService);
 
   constructor(
     private route: ActivatedRoute,
@@ -95,44 +130,10 @@ export class LoginComponent implements OnInit, OnDestroy {
       this.footerHtml = this.themeService.sanitizeEmbedHtml(t?.content?.footerEmbedCode);
     });
 
-    if (this.state) {
-      this.waitingForVerification = true;
-
-      this.sseSub = this.sseService.connect(this.state).subscribe({
-        next: redirectUrl => {
-          // A completed login always wins, even one that lands after the countdown
-          // ended: cancel the pending abort/error redirect.
-          this.timerSub?.unsubscribe();
-          this.timedOut = false;
-          this.waitingForVerification = false;
-          this.showSuccess = true;
-          this.clearCountdown();
-          setTimeout(() => {
-            window.location.href = redirectUrl;
-          }, 800);
-        },
-        error: (err: unknown) => {
-          // After the timeout the stream closing is expected: stay on the expired screen.
-          if (this.timedOut) return;
-          this.waitingForVerification = false;
-          this.errorMessage = err instanceof SseValidationError && err.code === SSE_VALIDATION_CODE.CREDENTIAL_REVOKED
-            ? 'login.errorCredentialRevoked'
-            : 'login.error';
-          this.clearCountdown();
-        }
-      });
-
-      this.startCountdown();
-
-      this.timerSub = timer(LOGIN_TIMEOUT_MS).pipe(
-        tap(() => this.markTimedOut()),
-        switchMap(() => this.resolveReturnUrl())
-      ).subscribe(returnUrl => {
-        if (returnUrl) {
-          this.sseSub?.unsubscribe();
-          window.location.href = returnUrl;
-        }
-      });
+    if (this.state && !this.authRequest) {
+      this.loadMethods();
+    } else if (this.state) {
+      this.enterWalletStep();
     }
   }
 
@@ -168,6 +169,147 @@ export class LoginComponent implements OnInit, OnDestroy {
     }
   }
 
+  chooseMethod(method: LoginMethod): void {
+    if (method === 'wallet') {
+      this.requestWallet();
+    } else {
+      this.step.set('certificate');
+    }
+  }
+
+  changeMethod(): void {
+    this.leaveWalletStep();
+    this.certificateSub?.unsubscribe();
+    this.certificateErrorReason.set(null);
+    this.step.set('methods');
+  }
+
+  startCertificateLogin(): void {
+    this.step.set('validating');
+    this.certificateSub = this.certificateLoginService.login(this.state).subscribe(result => {
+      if ('redirectUri' in result) {
+        window.location.href = result.redirectUri;
+      } else {
+        this.certificateErrorReason.set(result.reason);
+        this.step.set('error');
+      }
+    });
+  }
+
+  backToApplication(): void {
+    this.abortSub = this.loginSessionService.abort(this.state).subscribe(returnUrl => {
+      if (returnUrl) {
+        window.location.href = returnUrl;
+      } else {
+        this.showError('login.error');
+      }
+    });
+  }
+
+  private requestWallet(): void {
+    this.step.set('loading');
+    this.walletRequestSub = this.loginMethodsService.startWallet(this.state).subscribe({
+      next: ({ authRequest, expires_in }) => {
+        this.authRequest = authRequest;
+        this.enterWalletStep(expires_in * 1000);
+      },
+      error: (err: unknown) => this.handleLoginError(err)
+    });
+  }
+
+  private handleLoginError(err: unknown): void {
+    if (err instanceof HttpErrorResponse && err.status === HttpStatusCode.NotFound) {
+      this.expireLogin();
+    } else {
+      this.showError('login.error');
+    }
+  }
+
+  private expireLogin(): void {
+    this.markTimedOut();
+    this.step.set('expired');
+    this.timerSub = this.resolveReturnUrl().subscribe(returnUrl => {
+      if (returnUrl) {
+        window.location.href = returnUrl;
+      }
+    });
+  }
+
+  private leaveWalletStep(): void {
+    this.sseSub?.unsubscribe();
+    this.timerSub?.unsubscribe();
+    this.clearCountdown();
+    this.waitingForVerification = false;
+    this.timedOut = false;
+  }
+
+  private loadMethods(): void {
+    this.step.set('loading');
+    this.methodsSub = this.loginMethodsService.getMethods(this.state).subscribe({
+      next: ({ methods, essential_level }) => {
+        if (methods.length === 0) {
+          this.showError('login.error');
+          return;
+        }
+        this.methods.set(methods);
+        this.essentialLevel.set(essential_level ?? null);
+        if (methods.length === 1) {
+          this.chooseMethod(methods[0]);
+        } else {
+          this.step.set('methods');
+        }
+      },
+      error: (err: unknown) => this.handleLoginError(err)
+    });
+  }
+
+  private showError(messageKey: string): void {
+    this.certificateErrorReason.set(null);
+    this.errorMessage = messageKey;
+    this.step.set('error');
+  }
+
+  private enterWalletStep(timeoutMs: number = LOGIN_TIMEOUT_MS): void {
+    this.step.set('wallet');
+    this.waitingForVerification = true;
+
+    this.sseSub = this.sseService.connect(this.state).subscribe({
+      next: redirectUrl => {
+        // A completed login always wins, even one that lands after the countdown
+        // ended: cancel the pending abort/error redirect.
+        this.timerSub?.unsubscribe();
+        this.timedOut = false;
+        this.waitingForVerification = false;
+        this.showSuccess = true;
+        this.clearCountdown();
+        setTimeout(() => {
+          window.location.href = redirectUrl;
+        }, 800);
+      },
+      error: (err: unknown) => {
+        // After the timeout the stream closing is expected: stay on the expired screen.
+        if (this.timedOut) return;
+        this.waitingForVerification = false;
+        this.showError(err instanceof SseValidationError && err.code === SSE_VALIDATION_CODE.CREDENTIAL_REVOKED
+          ? 'login.errorCredentialRevoked'
+          : 'login.error');
+        this.clearCountdown();
+      }
+    });
+
+    this.startCountdown(timeoutMs);
+
+    this.timerSub = timer(timeoutMs).pipe(
+      tap(() => this.markTimedOut()),
+      switchMap(() => this.resolveReturnUrl())
+    ).subscribe(returnUrl => {
+      if (returnUrl) {
+        this.sseSub?.unsubscribe();
+        window.location.href = returnUrl;
+      }
+    });
+  }
+
   private markTimedOut(): void {
     this.waitingForVerification = false;
     this.timedOut = true;
@@ -201,8 +343,8 @@ export class LoginComponent implements OnInit, OnDestroy {
    * `Date.now()` on every tick, and immediately on `visibilitychange`, makes
    * the displayed value self-correct instead of slowly catching up.
    */
-  private startCountdown(): void {
-    this.countdownDeadline = Date.now() + LOGIN_TIMEOUT_MS;
+  private startCountdown(timeoutMs: number): void {
+    this.countdownDeadline = Date.now() + timeoutMs;
     this.tickCountdown();
     this.countdownInterval = setInterval(() => this.tickCountdown(), 1000);
     document.addEventListener('visibilitychange', this.onVisibilityChange);
@@ -211,7 +353,7 @@ export class LoginComponent implements OnInit, OnDestroy {
   private tickCountdown(): void {
     const remainingMs = Math.max(0, this.countdownDeadline - Date.now());
     this.remainingSeconds = Math.ceil(remainingMs / 1000);
-    this.countdownPercentage = (remainingMs / LOGIN_TIMEOUT_MS) * 100;
+    this.countdownPercentage = Math.min(100, (remainingMs / LOGIN_TIMEOUT_MS) * 100);
     if (remainingMs <= 0) {
       this.clearCountdown();
     }
@@ -229,6 +371,10 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.sseSub?.unsubscribe();
     this.timerSub?.unsubscribe();
     this.themeSub?.unsubscribe();
+    this.methodsSub?.unsubscribe();
+    this.walletRequestSub?.unsubscribe();
+    this.abortSub?.unsubscribe();
+    this.certificateSub?.unsubscribe();
     this.clearCountdown();
   }
 }
