@@ -35,7 +35,7 @@ describe('LoginMethodsService', () => {
       service.getMethods('unknown').subscribe({ error: err => status = err.status });
 
       httpMock.expectOne(r => r.url.endsWith('/api/login/methods'))
-        .flush({ reason: 'LoginNotFound' }, { status: 404, statusText: 'Not Found' });
+        .flush({ type: 'login_not_found' }, { status: 404, statusText: 'Not Found' });
 
       expect(status).toBe(404);
     });
@@ -59,7 +59,7 @@ describe('LoginMethodsService', () => {
       service.startWallet('s1').subscribe({ error: err => status = err.status });
 
       httpMock.expectOne(r => r.url.endsWith('/api/login/wallet'))
-        .flush({ reason: 'MethodNotOffered' }, { status: 409, statusText: 'Conflict' });
+        .flush({ type: 'method_not_offered' }, { status: 409, statusText: 'Conflict' });
 
       expect(status).toBe(409);
     });

@@ -576,14 +576,14 @@ describe('LoginComponent', () => {
     });
 
     it.each([
-      'CertificateMissing',
-      'CertificateNotQualified',
-      'CertificateNotNaturalPerson',
-      'CertificateExpired',
-      'CertificateRevoked',
-      'ValidationUnavailable',
-      'LevelNotMet',
-      'LoginNotFound',
+      'certificate_missing',
+      'certificate_not_qualified',
+      'certificate_not_natural_person',
+      'certificate_expired',
+      'certificate_revoked',
+      'trust_validation_unavailable',
+      'level_not_met',
+      'login_not_found',
     ] as const)('shows the message of %s on the error step', reason => {
       showCertificate();
       loginMock().mockReturnValue(of({ reason }));
@@ -598,7 +598,7 @@ describe('LoginComponent', () => {
 
     it('offers no retry on the error step', () => {
       showCertificate();
-      loginMock().mockReturnValue(of({ reason: 'CertificateRevoked' }));
+      loginMock().mockReturnValue(of({ reason: 'certificate_revoked' }));
 
       click('app-certificate-step .primary-action');
 
@@ -609,7 +609,7 @@ describe('LoginComponent', () => {
 
     it('returns to the selection from the error step, clearing the reason', () => {
       showCertificate();
-      loginMock().mockReturnValue(of({ reason: 'CertificateNotNaturalPerson' }));
+      loginMock().mockReturnValue(of({ reason: 'certificate_not_natural_person' }));
       click('app-certificate-step .primary-action');
 
       click('app-certificate-error .primary-action');
@@ -621,7 +621,7 @@ describe('LoginComponent', () => {
 
     it('hides «Cambiar de método» on the error step when the certificate is the only method', () => {
       showCertificate(['x509']);
-      loginMock().mockReturnValue(of({ reason: 'CertificateExpired' }));
+      loginMock().mockReturnValue(of({ reason: 'certificate_expired' }));
 
       click('app-certificate-step .primary-action');
 
@@ -642,7 +642,7 @@ describe('LoginComponent', () => {
     it('returns to the application from the error step', () => {
       mockLocation();
       showCertificate();
-      loginMock().mockReturnValue(of({ reason: 'LevelNotMet' }));
+      loginMock().mockReturnValue(of({ reason: 'level_not_met' }));
       click('app-certificate-step .primary-action');
       (TestBed.inject(LoginSessionService).abort as jest.Mock).mockReturnValue(of(RP_ERROR_REDIRECT));
 
@@ -654,7 +654,7 @@ describe('LoginComponent', () => {
     it('replaces the certificate error with the generic error when the login can no longer be aborted', () => {
       mockLocation();
       showCertificate();
-      loginMock().mockReturnValue(of({ reason: 'LoginNotFound' }));
+      loginMock().mockReturnValue(of({ reason: 'login_not_found' }));
       click('app-certificate-step .primary-action');
 
       click('app-certificate-error .back-to-application');

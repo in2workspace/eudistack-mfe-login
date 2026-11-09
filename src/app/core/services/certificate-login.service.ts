@@ -4,14 +4,14 @@ import { environment } from '../../../environments/environment';
 import { TenantService } from './tenant.service';
 
 export const CERTIFICATE_LOGIN_REASONS = [
-  'CertificateMissing',
-  'CertificateNotQualified',
-  'CertificateNotNaturalPerson',
-  'CertificateExpired',
-  'CertificateRevoked',
-  'ValidationUnavailable',
-  'LevelNotMet',
-  'LoginNotFound',
+  'certificate_missing',
+  'certificate_not_qualified',
+  'certificate_not_natural_person',
+  'certificate_expired',
+  'certificate_revoked',
+  'trust_validation_unavailable',
+  'level_not_met',
+  'login_not_found',
 ] as const;
 
 export type CertificateLoginReason = typeof CERTIFICATE_LOGIN_REASONS[number];
@@ -40,7 +40,7 @@ export class CertificateLoginService {
   private async post(state: string, signal: AbortSignal): Promise<CertificateLoginResult> {
     const baseUrl = this.baseUrl();
     if (!baseUrl) {
-      return { reason: 'ValidationUnavailable' };
+      return { reason: 'trust_validation_unavailable' };
     }
 
     let response: Response;
@@ -54,14 +54,14 @@ export class CertificateLoginService {
         signal,
       });
     } catch {
-      return { reason: 'CertificateMissing' };
+      return { reason: 'certificate_missing' };
     }
 
     const body = await response.json().catch(() => null);
     if (response.ok && typeof body?.redirect_uri === 'string') {
       return { redirectUri: body.redirect_uri };
     }
-    return { reason: this.toReason(body?.reason) };
+    return { reason: this.toReason(body?.type) };
   }
 
   private baseUrl(): string {
@@ -69,7 +69,7 @@ export class CertificateLoginService {
     return template.replaceAll(TENANT_PLACEHOLDER, this.tenantService.tenant()).replace(/\/+$/, '');
   }
 
-  private toReason(reason: unknown): CertificateLoginReason {
-    return CERTIFICATE_LOGIN_REASONS.find(known => known === reason) ?? 'ValidationUnavailable';
+  private toReason(type: unknown): CertificateLoginReason {
+    return CERTIFICATE_LOGIN_REASONS.find(known => known === type) ?? 'trust_validation_unavailable';
   }
 }

@@ -52,49 +52,49 @@ describe('CertificateLoginService', () => {
   });
 
   it.each([
-    [403, 'CertificateNotNaturalPerson'],
-    [403, 'CertificateRevoked'],
-    [403, 'LevelNotMet'],
-    [404, 'LoginNotFound'],
-    [503, 'ValidationUnavailable'],
-  ])('should emit the reason of a %i response (%s)', async (status, reason) => {
-    fetchMock.mockResolvedValue(jsonResponse(status, { reason }));
+    [403, 'certificate_not_natural_person'],
+    [403, 'certificate_revoked'],
+    [403, 'level_not_met'],
+    [404, 'login_not_found'],
+    [503, 'trust_validation_unavailable'],
+  ])('should emit the code of a %i response (%s)', async (status, reason) => {
+    fetchMock.mockResolvedValue(jsonResponse(status, { type: reason }));
 
     const result = await firstValueFrom(service.login('s1'));
 
     expect(result).toEqual({ reason });
   });
 
-  it('should treat a network error as CertificateMissing, which is what a cancelled certificate picker produces', async () => {
+  it('should treat a network error as certificate_missing, which is what a cancelled certificate picker produces', async () => {
     fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
 
     const result = await firstValueFrom(service.login('s1'));
 
-    expect(result).toEqual({ reason: 'CertificateMissing' });
+    expect(result).toEqual({ reason: 'certificate_missing' });
   });
 
-  it('should treat an unknown reason as ValidationUnavailable', async () => {
-    fetchMock.mockResolvedValue(jsonResponse(403, { reason: 'SomethingNew' }));
+  it('should treat an unknown code as trust_validation_unavailable', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(403, { type: 'something_new' }));
 
     const result = await firstValueFrom(service.login('s1'));
 
-    expect(result).toEqual({ reason: 'ValidationUnavailable' });
+    expect(result).toEqual({ reason: 'trust_validation_unavailable' });
   });
 
-  it('should treat an error response without a JSON body as ValidationUnavailable', async () => {
+  it('should treat an error response without a JSON body as trust_validation_unavailable', async () => {
     fetchMock.mockResolvedValue({ ok: false, status: 502, json: () => Promise.reject(new SyntaxError('not json')) });
 
     const result = await firstValueFrom(service.login('s1'));
 
-    expect(result).toEqual({ reason: 'ValidationUnavailable' });
+    expect(result).toEqual({ reason: 'trust_validation_unavailable' });
   });
 
-  it('should treat a success response without redirect_uri as ValidationUnavailable', async () => {
+  it('should treat a success response without redirect_uri as trust_validation_unavailable', async () => {
     fetchMock.mockResolvedValue(jsonResponse(200, {}));
 
     const result = await firstValueFrom(service.login('s1'));
 
-    expect(result).toEqual({ reason: 'ValidationUnavailable' });
+    expect(result).toEqual({ reason: 'trust_validation_unavailable' });
   });
 
   it('should not call the certificate address when it is not configured', async () => {
@@ -103,7 +103,7 @@ describe('CertificateLoginService', () => {
     const result = await firstValueFrom(service.login('s1'));
 
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(result).toEqual({ reason: 'ValidationUnavailable' });
+    expect(result).toEqual({ reason: 'trust_validation_unavailable' });
   });
 
   it('should abort the call when the subscription is cancelled', () => {
