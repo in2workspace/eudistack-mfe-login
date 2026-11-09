@@ -114,4 +114,21 @@ describe('CertificateLoginService', () => {
     const signal: AbortSignal = fetchMock.mock.calls[0][1].signal;
     expect(signal.aborted).toBe(true);
   });
+
+  it('should remove every trailing slash of the certificate address', async () => {
+    environment.cert_base_url = 'https://{tenant}-cert.stg.eudistack.net/verifier///';
+    fetchMock.mockResolvedValue(jsonResponse(200, { redirect_uri: 'https://portal.example.com/cb' }));
+
+    await firstValueFrom(service.login('s1'));
+
+    expect(fetchMock.mock.calls[0][0]).toBe('https://cgcom-cert.stg.eudistack.net/verifier/api/login/certificate');
+  });
+
+  it('should emit the error when the call cannot be prepared', async () => {
+    environment.cert_base_url = 'https://{tenant}-cert.stg.eudistack.net/verifier';
+    const failure = new Error('no tenant');
+    jest.spyOn(TestBed.inject(TenantService), 'tenant').mockImplementation(() => { throw failure; });
+
+    await expect(firstValueFrom(service.login('s1'))).rejects.toBe(failure);
+  });
 });

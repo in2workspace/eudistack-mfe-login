@@ -29,10 +29,13 @@ export class CertificateLoginService {
   login(state: string): Observable<CertificateLoginResult> {
     return new Observable<CertificateLoginResult>(subscriber => {
       const controller = new AbortController();
-      this.post(state, controller.signal).then(result => {
-        subscriber.next(result);
-        subscriber.complete();
-      });
+      this.post(state, controller.signal).then(
+        result => {
+          subscriber.next(result);
+          subscriber.complete();
+        },
+        error => subscriber.error(error),
+      );
       return () => controller.abort();
     });
   }
@@ -65,8 +68,11 @@ export class CertificateLoginService {
   }
 
   private baseUrl(): string {
-    const template = environment.cert_base_url ?? '';
-    return template.replaceAll(TENANT_PLACEHOLDER, this.tenantService.tenant()).replace(/\/+$/, '');
+    let url = (environment.cert_base_url ?? '').replaceAll(TENANT_PLACEHOLDER, this.tenantService.tenant());
+    while (url.endsWith('/')) {
+      url = url.slice(0, -1);
+    }
+    return url;
   }
 
   private toReason(type: unknown): CertificateLoginReason {
