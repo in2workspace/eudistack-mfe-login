@@ -488,7 +488,7 @@ describe('LoginComponent', () => {
       expect(window.location.href).toBe(RP_ERROR_REDIRECT);
     });
 
-    it('shows the error when the Verifier no longer knows the login to return to', () => {
+    it('stays on the selection when the Verifier does not let the login be aborted', () => {
       mockLocation();
       showSelection();
 
@@ -496,7 +496,7 @@ describe('LoginComponent', () => {
       fixture.detectChanges();
 
       expect(window.location.href).toBe('');
-      expect(component.step()).toBe('error');
+      expect(component.step()).toBe('methods');
     });
   });
 
@@ -651,16 +651,18 @@ describe('LoginComponent', () => {
       expect(window.location.href).toBe(RP_ERROR_REDIRECT);
     });
 
-    it('replaces the certificate error with the generic error when the login can no longer be aborted', () => {
+    it('keeps the certificate error when the login cannot be aborted', () => {
       mockLocation();
       showCertificate();
-      loginMock().mockReturnValue(of({ reason: 'login_not_found' }));
+      loginMock().mockReturnValue(of({ reason: 'certificate_expired' }));
       click('app-certificate-step .primary-action');
 
       click('app-certificate-error .back-to-application');
 
-      expect(query('app-certificate-error')).toBeNull();
-      expect(query('.error-card')).toBeTruthy();
+      expect(window.location.href).toBe('');
+      expect(component.step()).toBe('error');
+      expect(component.certificateErrorReason()).toBe('certificate_expired');
+      expect(query('app-certificate-error')).toBeTruthy();
     });
 
     it('cancels the certificate call when the component is destroyed', () => {

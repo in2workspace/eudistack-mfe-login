@@ -200,8 +200,6 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.abortSub = this.loginSessionService.abort(this.state).subscribe(returnUrl => {
       if (returnUrl) {
         window.location.href = returnUrl;
-      } else {
-        this.showError('login.error');
       }
     });
   }
