@@ -52,7 +52,7 @@ export class CertificateLoginService {
         method: 'POST',
         mode: 'cors',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Tenant': this.tenantService.tenant() },
         body: JSON.stringify({ state }),
         signal,
       });

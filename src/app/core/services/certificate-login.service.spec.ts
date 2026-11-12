@@ -26,7 +26,7 @@ describe('CertificateLoginService', () => {
     environment.cert_base_url = originalBaseUrl;
   });
 
-  it('should POST the state to the certificate address of the tenant with CORS and credentials', async () => {
+  it('should POST the state and the tenant to the certificate address of the tenant with CORS and credentials', async () => {
     environment.cert_base_url = 'https://{tenant}-cert.stg.eudistack.net/verifier/';
     fetchMock.mockResolvedValue(jsonResponse(200, { redirect_uri: 'https://portal.example.com/cb?code=c1&state=s1' }));
 
@@ -38,7 +38,7 @@ describe('CertificateLoginService', () => {
       method: 'POST',
       mode: 'cors',
       credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Tenant': 'cgcom' },
       body: JSON.stringify({ state: 's1' }),
     }));
   });
