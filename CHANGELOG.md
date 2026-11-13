@@ -4,7 +4,7 @@
 
 ### Added
 
-- **EUD-313 — login with a qualified certificate**: the screen asks the Verifier for the login methods and shows the selection, or goes straight to the only one. The wallet request is created only when the person chooses it. The certificate step calls the tenant's certificate address (`CERT_BASE_URL`) from the same page and shows one message per error `type` of the Verifier (es/en/ca), with "Change method" and "Back to the application".
+- **EUD-313 — login with a qualified certificate**: the screen asks the Verifier for the login methods and shows the selection, or goes straight to the only one. The wallet request is created only when the person chooses it. The certificate step calls the certificate address (`CERT_BASE_URL`, one secure host for every tenant) from the same page, with the tenant in `X-Tenant`, and shows one message per error `type` of the Verifier (es/en/ca), with "Change method" and "Back to the application".
 
 ### Fixed
 
