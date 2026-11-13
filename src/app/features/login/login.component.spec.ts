@@ -1396,6 +1396,18 @@ describe('LoginComponent', () => {
       expect(component.waitingForVerification).toBe(false);
     });
 
+    it('should show the level message on LEVEL_NOT_MET', () => {
+      createComponent({ authRequest: 'openid4vp://request', state: 's123' });
+      (TestBed.inject(SseService).connect as jest.Mock).mockReturnValue(
+        throwError(() => new SseValidationError('LEVEL_NOT_MET', 'level'))
+      );
+
+      fixture.detectChanges();
+
+      expect(component.errorMessage).toBe('login.errorLevelNotMet');
+      expect(component.waitingForVerification).toBe(false);
+    });
+
     it('should keep the generic message for other validation codes', () => {
       createComponent({ authRequest: 'openid4vp://request', state: 's123' });
       (TestBed.inject(SseService).connect as jest.Mock).mockReturnValue(

@@ -40,6 +40,15 @@ const LEVEL_NOTICES: Record<string, string> = {
   'http://eidas.europa.eu/LoA/substantial': 'login.methods.levelNotice.substantial',
 };
 
+const VALIDATION_ERROR_MESSAGES: Record<string, string> = {
+  [SSE_VALIDATION_CODE.CREDENTIAL_REVOKED]: 'login.errorCredentialRevoked',
+  [SSE_VALIDATION_CODE.LEVEL_NOT_MET]: 'login.errorLevelNotMet',
+};
+
+function validationErrorMessage(err: unknown): string {
+  return (err instanceof SseValidationError && VALIDATION_ERROR_MESSAGES[err.code]) || 'login.error';
+}
+
 @Component({
   selector: 'app-login',
   standalone: true,
@@ -288,9 +297,7 @@ export class LoginComponent implements OnInit, OnDestroy {
         // After the timeout the stream closing is expected: stay on the expired screen.
         if (this.timedOut) return;
         this.waitingForVerification = false;
-        this.showError(err instanceof SseValidationError && err.code === SSE_VALIDATION_CODE.CREDENTIAL_REVOKED
-          ? 'login.errorCredentialRevoked'
-          : 'login.error');
+        this.showError(validationErrorMessage(err));
         this.clearCountdown();
       }
     });

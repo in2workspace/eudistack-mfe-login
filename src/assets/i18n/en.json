@@ -22,6 +22,7 @@
   "login.verified": "Verified!",
   "login.error": "An error occurred during login.",
   "login.errorCredentialRevoked": "The credential has been revoked and is not valid for access.",
+  "login.errorLevelNotMet": "Your credential does not have the level of assurance this application requires.",
   "login.methods.title": "How do you want to identify yourself?",
   "login.methods.x509.title": "Digital certificate",
   "login.methods.x509.desc": "DNIe, FNMT…",

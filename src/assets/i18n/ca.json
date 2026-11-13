@@ -22,6 +22,7 @@
   "login.verified": "Verificat!",
   "login.error": "S'ha produït un error durant l'inici de sessió.",
   "login.errorCredentialRevoked": "La credencial ha estat revocada i no és vàlida per accedir-hi.",
+  "login.errorLevelNotMet": "La teva credencial no té el nivell de seguretat que demana aquesta aplicació.",
   "login.methods.title": "Com et vols identificar?",
   "login.methods.x509.title": "Certificat digital",
   "login.methods.x509.desc": "DNIe, FNMT…",
