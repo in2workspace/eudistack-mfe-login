@@ -2,8 +2,14 @@
 
 [Unreleased]
 
+### Added
+
+- **EUD-313 — login with a qualified certificate**: the screen asks the Verifier for the login methods and shows the selection, or goes straight to the only one. The wallet request is created only when the person chooses it. The certificate step calls the certificate address (`CERT_BASE_URL`, one secure host for every tenant) from the same page, with the tenant in `X-Tenant`, and shows one message per error `type` of the Verifier (es/en/ca), with "Change method" and "Back to the application".
+
 ### Fixed
 
+- **Login the Verifier no longer knows** (404) shows the expired session and returns to the application, instead of the generic error.
+- **The copy animation** is skipped when the user prefers reduced motion, and the countdown shows the time the login really has left.
 - **I-04 — login con credencial revocada muestra un mensaje explícito**: `SseService` ahora escucha el evento `validation_failed` del verifier y emite un `SseValidationError` con el `code`; antes solo escuchaba `redirect`, por lo que el cierre del emitter se interpretaba como fallo de conexión y se mostraba el error genérico. `LoginComponent` muestra `login.errorCredentialRevoked` (es/en/ca) para `CREDENTIAL_REVOKED`; el resto de códigos y los fallos de conexión mantienen `login.error`. Tests: `sse.service.spec.ts`, `login.component.spec.ts`.
 - **Login QR was hard to scan and the screen ignored large monitors**: the QR now uses a lower error-correction level, so it holds fewer and therefore larger squares in the same space, and it no longer shrank silently when a narrow window squeezed its column. The login screen now also scales above 1920 px — content, text, icons and the QR grow proportionally, capped by the available height so nothing is pushed out of view. At 1920 px and below it looks exactly as before.
 - **An expired QR login now returns the user to the application that started it, not to the Issuer**: after 120 s, `login.component.ts` always redirected to `{issuer}/home` (or `/issuer/home`), whatever the client (Issuance Portal, DOME Marketplace, any RP). It now calls the Verifier's `POST /api/login/abort` (new `LoginSessionService`), which invalidates the login and returns the client's `redirect_uri` with `error=access_denied`. The redirect happens after 3 s (or when the Verifier answers, if later) and is cancelled if the component is destroyed. If the Verifier does not know the login or does not answer, there is no redirect: the expired-session screen stays. `ISSUER_HOME_PATH` is removed. Requires `eudistack-core-verifier` with the `abort` endpoint. Tests: `login-session.service.spec.ts`, `timeout redirect` block of `login.component.spec.ts` rewritten.

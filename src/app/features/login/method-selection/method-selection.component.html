@@ -1,0 +1,24 @@
+<ul class="method-list">
+  <li *ngFor="let method of methods()">
+    <button type="button" class="method-option" (click)="methodChosen.emit(method)">
+      <ion-icon [name]="methodIcons[method]" class="method-icon" aria-hidden="true"></ion-icon>
+      <span class="method-body">
+        <span class="method-title">{{ 'login.methods.' + method + '.title' | translate }}</span>
+        <span class="method-desc">{{ 'login.methods.' + method + '.desc' | translate }}</span>
+      </span>
+      <span class="method-select">
+        {{ 'login.methods.select' | translate }}
+        <ion-icon name="chevron-forward-outline" aria-hidden="true"></ion-icon>
+      </span>
+    </button>
+  </li>
+</ul>
+
+<p class="level-notice" *ngIf="levelNoticeKey() as noticeKey">
+  <ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon>
+  <span>{{ noticeKey | translate }}</span>
+</p>
+
+<button type="button" class="back-to-application" (click)="backToApplication.emit()">
+  {{ 'login.backToApplication' | translate }}
+</button>
