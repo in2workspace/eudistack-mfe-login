@@ -57,6 +57,8 @@ describe('CertificateLoginService', () => {
     [403, 'level_not_met'],
     [404, 'login_not_found'],
     [503, 'trust_validation_unavailable'],
+    [400, 'invalid_request'],
+    [500, 'internal_error'],
   ])('should emit the code of a %i response (%s)', async (status, reason) => {
     fetchMock.mockResolvedValue(jsonResponse(status, { type: reason }));
 
@@ -73,28 +75,35 @@ describe('CertificateLoginService', () => {
     expect(result).toEqual({ reason: 'certificate_missing' });
   });
 
-  it('should treat an unknown code as trust_validation_unavailable', async () => {
+  it('should treat an unknown code as internal_error', async () => {
     fetchMock.mockResolvedValue(jsonResponse(403, { type: 'something_new' }));
 
     const result = await firstValueFrom(service.login('s1'));
 
-    expect(result).toEqual({ reason: 'trust_validation_unavailable' });
+    expect(result).toEqual({ reason: 'internal_error' });
   });
 
-  it('should treat an error response without a JSON body as trust_validation_unavailable', async () => {
-    fetchMock.mockResolvedValue({ ok: false, status: 502, json: () => Promise.reject(new SyntaxError('not json')) });
+  it.each([
+    [400, 'invalid_request'],
+    [415, 'invalid_request'],
+    [429, 'trust_validation_unavailable'],
+    [503, 'trust_validation_unavailable'],
+    [403, 'internal_error'],
+    [502, 'internal_error'],
+  ])('should take the reason of a %i response without a JSON body from its status (%s)', async (status, reason) => {
+    fetchMock.mockResolvedValue({ ok: false, status, json: () => Promise.reject(new SyntaxError('not json')) });
 
     const result = await firstValueFrom(service.login('s1'));
 
-    expect(result).toEqual({ reason: 'trust_validation_unavailable' });
+    expect(result).toEqual({ reason });
   });
 
-  it('should treat a success response without redirect_uri as trust_validation_unavailable', async () => {
+  it('should treat a success response without redirect_uri as internal_error', async () => {
     fetchMock.mockResolvedValue(jsonResponse(200, {}));
 
     const result = await firstValueFrom(service.login('s1'));
 
-    expect(result).toEqual({ reason: 'trust_validation_unavailable' });
+    expect(result).toEqual({ reason: 'internal_error' });
   });
 
   it('should not call the certificate address when it is not configured', async () => {

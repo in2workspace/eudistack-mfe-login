@@ -46,6 +46,8 @@
   "login.certificate.reason.trust_validation_unavailable": "Ara no podem comprovar el teu certificat. Torna-ho a provar més tard o entra amb un altre mètode.",
   "login.certificate.reason.level_not_met": "Aquesta aplicació necessita un certificat en targeta o en un altre dispositiu segur.",
   "login.certificate.reason.login_not_found": "L'inici de sessió ha caducat. Torna a l'aplicació per començar de nou.",
+  "login.certificate.reason.invalid_request": "No hem pogut processar la petició. Torna a l'aplicació per començar de nou.",
+  "login.certificate.reason.internal_error": "S'ha produït un error en comprovar el teu certificat. Torna-ho a provar més tard o entra amb un altre mètode.",
   "error.title": "Error d'autenticació",
   "error.message": "S'ha produït un error durant l'autenticació del client.",
   "error.details": "Detalls de l'error",

@@ -46,6 +46,8 @@
   "login.certificate.reason.trust_validation_unavailable": "Ahora no podemos comprobar tu certificado. Inténtalo más tarde o entra con otro método.",
   "login.certificate.reason.level_not_met": "Esta aplicación necesita un certificado en tarjeta o en otro dispositivo seguro.",
   "login.certificate.reason.login_not_found": "El inicio de sesión ha caducado. Vuelve a la aplicación para empezar de nuevo.",
+  "login.certificate.reason.invalid_request": "No hemos podido procesar la petición. Vuelve a la aplicación para empezar de nuevo.",
+  "login.certificate.reason.internal_error": "Se ha producido un error al comprobar tu certificado. Inténtalo más tarde o entra con otro método.",
   "error.title": "Error de autenticación",
   "error.message": "Se ha producido un error durante la autenticación del cliente.",
   "error.details": "Detalles del error",

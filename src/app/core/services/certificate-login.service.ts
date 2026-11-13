@@ -12,6 +12,8 @@ export const CERTIFICATE_LOGIN_REASONS = [
   'trust_validation_unavailable',
   'level_not_met',
   'login_not_found',
+  'invalid_request',
+  'internal_error',
 ] as const;
 
 export type CertificateLoginReason = typeof CERTIFICATE_LOGIN_REASONS[number];
@@ -64,7 +66,7 @@ export class CertificateLoginService {
     if (response.ok && typeof body?.redirect_uri === 'string') {
       return { redirectUri: body.redirect_uri };
     }
-    return { reason: this.toReason(body?.type) };
+    return { reason: this.toReason(body?.type, response.status) };
   }
 
   private baseUrl(): string {
@@ -75,7 +77,17 @@ export class CertificateLoginService {
     return url;
   }
 
-  private toReason(type: unknown): CertificateLoginReason {
-    return CERTIFICATE_LOGIN_REASONS.find(known => known === type) ?? 'trust_validation_unavailable';
+  private toReason(type: unknown, status: number): CertificateLoginReason {
+    const known = CERTIFICATE_LOGIN_REASONS.find(reason => reason === type);
+    if (known) {
+      return known;
+    }
+    if (status === 400 || status === 415) {
+      return 'invalid_request';
+    }
+    if (status === 429 || status === 503) {
+      return 'trust_validation_unavailable';
+    }
+    return 'internal_error';
   }
 }
