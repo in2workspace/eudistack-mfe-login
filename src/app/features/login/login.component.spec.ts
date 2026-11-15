@@ -628,6 +628,17 @@ describe('LoginComponent', () => {
       expect(query('app-certificate-error .primary-action')).toBeNull();
     });
 
+    it('offers only «Volver a la aplicación» after an internal error, because the login is already used', () => {
+      showCertificate();
+      loginMock().mockReturnValue(of({ reason: 'internal_error' }));
+
+      click('app-certificate-step .primary-action');
+
+      const buttons = fixture.debugElement.queryAll(By.css('app-certificate-error button'))
+        .map(button => button.nativeElement.textContent.trim());
+      expect(buttons).toEqual(['login.backToApplication']);
+    });
+
     it('returns to the application from the certificate step', () => {
       mockLocation();
       showCertificate();
