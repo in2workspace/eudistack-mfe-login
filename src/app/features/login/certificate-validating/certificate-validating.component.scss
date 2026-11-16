@@ -1,0 +1,18 @@
+@use '../login-actions';
+
+:host { display: flex; flex-direction: column; align-items: center; gap: 24px; width: 100%; padding: 40px 0; }
+
+.spinner {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 5px solid rgba(255, 255, 255, 0.25);
+  border-top-color: var(--primary-contrast-color);
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation-duration: 3s; }
+}

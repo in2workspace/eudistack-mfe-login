@@ -1,0 +1,12 @@
+<ion-icon name="alert-circle-outline" class="error-icon" aria-hidden="true"></ion-icon>
+<h1 class="step-title">{{ 'login.certificate.error.title' | translate }}</h1>
+<p class="step-text">{{ 'login.certificate.reason.' + reason() | translate }}</p>
+
+<div class="step-actions">
+  <button type="button" class="back-to-application" (click)="backToApplication.emit()">
+    {{ 'login.backToApplication' | translate }}
+  </button>
+  <button type="button" class="primary-action" *ngIf="canChangeMethod()" (click)="changeMethod.emit()">
+    {{ 'login.changeMethod' | translate }}
+  </button>
+</div>

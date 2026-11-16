@@ -78,6 +78,7 @@ Runtime configuration is injected via `assets/env.js`, generated from `assets/en
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `API_BASE_URL` | Verifier backend URL | `http://localhost:8082` |
+| `CERT_BASE_URL` | Certificate login address (mutual TLS): one secure host for every tenant; the tenant travels in `X-Tenant` | `https://secure.127.0.0.1.nip.io:4443/verifier` |
 
 Theming is loaded at runtime from `assets/theme.json` (colors, logos, favicon, tenant domain).
 

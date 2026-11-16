@@ -5,6 +5,7 @@ import { environment } from '../../../environments/environment';
 /** Codes of the verifier's `validation_failed` SSE event that the login reacts to specifically. */
 export const SSE_VALIDATION_CODE = {
   CREDENTIAL_REVOKED: 'CREDENTIAL_REVOKED',
+  LEVEL_NOT_MET: 'LEVEL_NOT_MET',
 } as const;
 
 export class SseValidationError extends Error {

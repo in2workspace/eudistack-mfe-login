@@ -1,0 +1,16 @@
+<button type="button" class="change-method" *ngIf="canChangeMethod()" (click)="changeMethod.emit()">
+  <ion-icon name="chevron-back-outline" aria-hidden="true"></ion-icon>
+  <span>{{ 'login.changeMethod' | translate }}</span>
+</button>
+
+<h1 class="step-title">{{ 'login.certificate.title' | translate }}</h1>
+<p class="step-text">{{ 'login.certificate.description' | translate }}</p>
+
+<div class="step-actions">
+  <button type="button" class="back-to-application" (click)="backToApplication.emit()">
+    {{ 'login.backToApplication' | translate }}
+  </button>
+  <button type="button" class="primary-action" (click)="confirmed.emit()">
+    {{ 'login.certificate.continue' | translate }}
+  </button>
+</div>
