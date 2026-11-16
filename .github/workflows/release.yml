@@ -27,5 +27,5 @@ jobs:
         --base-href=/verifier/ --deploy-url=/verifier/
       build_output: dist/out/browser
       lint_command: npm run lint
-      runtime_required_variables: API_BASE_URL
+      runtime_required_variables: API_BASE_URL, CERT_BASE_URL
     secrets: inherit
