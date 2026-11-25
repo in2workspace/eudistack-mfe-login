@@ -19,6 +19,7 @@
   "login.support.contact.desktop": "Visita nuestros recursos de soporte",
   "login.support.contact.mobile": "Visita Soporte",
   "login.timeout": "Sesión expirada. Por favor, inténtalo de nuevo.",
+  "login.timeoutReturnToApp": "Sesión expirada. Vuelve a la aplicación desde la que has entrado para iniciar sesión de nuevo.",
   "login.verified": "¡Verificado!",
   "login.error": "Se ha producido un error durante el inicio de sesión.",
   "login.errorCredentialRevoked": "La credencial ha sido revocada y no es válida para acceder.",

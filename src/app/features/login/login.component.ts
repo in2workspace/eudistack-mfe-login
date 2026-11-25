@@ -1,5 +1,5 @@
-import { Component, computed, inject, OnInit, OnDestroy, CUSTOM_ELEMENTS_SCHEMA, signal } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { Component, computed, DestroyRef, inject, OnInit, OnDestroy, CUSTOM_ELEMENTS_SCHEMA, signal } from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
@@ -85,6 +85,7 @@ export class LoginComponent implements OnInit, OnDestroy {
   readonly hasOtherMethods = computed(() => this.methods().length > 1);
   readonly levelNoticeKey = computed(() => LEVEL_NOTICES[this.essentialLevel() ?? ''] ?? null);
   readonly certificateErrorReason = signal<CertificateLoginReason | null>(null);
+  readonly returnUnavailable = signal(false);
 
   private readonly viewport = toSignal(
     fromEvent(window, 'resize').pipe(
@@ -112,12 +113,12 @@ export class LoginComponent implements OnInit, OnDestroy {
   private themeSub?: Subscription;
   private methodsSub?: Subscription;
   private walletRequestSub?: Subscription;
-  private abortSub?: Subscription;
   private certificateSub?: Subscription;
   private countdownInterval?: ReturnType<typeof setInterval>;
   private countdownDeadline = 0;
   private readonly onVisibilityChange = (): void => this.tickCountdown();
 
+  private readonly destroyRef = inject(DestroyRef);
   private readonly tenantService = inject(TenantService);
   private readonly loginSessionService = inject(LoginSessionService);
   private readonly loginMethodsService = inject(LoginMethodsService);
@@ -206,9 +207,13 @@ export class LoginComponent implements OnInit, OnDestroy {
   }
 
   backToApplication(): void {
-    this.abortSub = this.loginSessionService.abort(this.state).subscribe(returnUrl => {
+    this.loginSessionService.abort(this.state).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(returnUrl => {
       if (returnUrl) {
         window.location.href = returnUrl;
+      } else {
+        this.markTimedOut();
+        this.step.set('expired');
+        this.returnUnavailable.set(true);
       }
     });
   }
@@ -238,6 +243,8 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.timerSub = this.resolveReturnUrl().subscribe(returnUrl => {
       if (returnUrl) {
         window.location.href = returnUrl;
+      } else {
+        this.returnUnavailable.set(true);
       }
     });
   }
@@ -311,6 +318,8 @@ export class LoginComponent implements OnInit, OnDestroy {
       if (returnUrl) {
         this.sseSub?.unsubscribe();
         window.location.href = returnUrl;
+      } else {
+        this.returnUnavailable.set(true);
       }
     });
   }
@@ -324,7 +333,8 @@ export class LoginComponent implements OnInit, OnDestroy {
   /**
    * Only the Verifier knows which application started the login, so the return
    * URL comes from aborting the login there. Emits `null` when it is unknown:
-   * the user then stays on the expired screen instead of being sent elsewhere.
+   * the user then stays on the expired screen, told to go back to the application
+   * on their own, instead of being sent elsewhere.
    * Never emits before the expired message has been shown for a moment.
    *
    * The SSE stream stays open meanwhile: abort and completion are mutually
@@ -378,7 +388,6 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.themeSub?.unsubscribe();
     this.methodsSub?.unsubscribe();
     this.walletRequestSub?.unsubscribe();
-    this.abortSub?.unsubscribe();
     this.certificateSub?.unsubscribe();
     this.clearCountdown();
   }

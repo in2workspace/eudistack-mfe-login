@@ -381,20 +381,27 @@ describe('LoginComponent', () => {
 
       tick(3000);
       expect(window.location.href).toBe(RP_ERROR_REDIRECT);
+      expect(component.returnUnavailable()).toBe(false);
     }));
 
-    it('stays on the expired session when the Verifier cannot say where to return', fakeAsync(() => {
+    it('tells the user to go back to the application when the Verifier cannot say where to return', fakeAsync(() => {
       mockLocation();
       showSelection();
       startWalletMock().mockReturnValue(throwError(() => new HttpErrorResponse({ status: 404 })));
 
       component.chooseMethod('wallet');
       fixture.detectChanges();
+      expect(fixture.debugElement.query(By.css('.timeout-card')).nativeElement.textContent)
+        .toContain('login.timeout');
+      expect(component.returnUnavailable()).toBe(false);
       tick(3000);
       fixture.detectChanges();
 
       expect(window.location.href).toBe('');
-      expect(fixture.debugElement.query(By.css('.timeout-card'))).toBeTruthy();
+      expect(component.returnUnavailable()).toBe(true);
+      expect(fixture.debugElement.query(By.css('.timeout-card')).nativeElement.textContent)
+        .toContain('login.timeoutReturnToApp');
+      expect(fixture.debugElement.query(By.css('.timeout-card button'))).toBeNull();
     }));
 
     it('goes to the certificate step without asking for the wallet request when the certificate is chosen', () => {
@@ -488,7 +495,7 @@ describe('LoginComponent', () => {
       expect(window.location.href).toBe(RP_ERROR_REDIRECT);
     });
 
-    it('stays on the selection when the Verifier does not let the login be aborted', () => {
+    it('tells the user to go back to the application when the Verifier does not let the login be aborted', () => {
       mockLocation();
       showSelection();
 
@@ -496,7 +503,12 @@ describe('LoginComponent', () => {
       fixture.detectChanges();
 
       expect(window.location.href).toBe('');
-      expect(component.step()).toBe('methods');
+      expect(component.step()).toBe('expired');
+      expect(component.returnUnavailable()).toBe(true);
+      expect(fixture.debugElement.query(By.css('app-method-selection'))).toBeNull();
+      expect(fixture.debugElement.query(By.css('.timeout-card')).nativeElement.textContent)
+        .toContain('login.timeoutReturnToApp');
+      expect(fixture.debugElement.query(By.css('button'))).toBeNull();
     });
   });
 
@@ -662,18 +674,32 @@ describe('LoginComponent', () => {
       expect(window.location.href).toBe(RP_ERROR_REDIRECT);
     });
 
-    it('keeps the certificate error when the login cannot be aborted', () => {
+    it('replaces the certificate error with the go-back message when the login cannot be aborted', () => {
       mockLocation();
       showCertificate();
-      loginMock().mockReturnValue(of({ reason: 'certificate_expired' }));
+      loginMock().mockReturnValue(of({ reason: 'login_not_found' }));
       click('app-certificate-step .primary-action');
 
       click('app-certificate-error .back-to-application');
 
       expect(window.location.href).toBe('');
-      expect(component.step()).toBe('error');
-      expect(component.certificateErrorReason()).toBe('certificate_expired');
-      expect(query('app-certificate-error')).toBeTruthy();
+      expect(component.step()).toBe('expired');
+      expect(component.returnUnavailable()).toBe(true);
+      expect(query('app-certificate-error')).toBeNull();
+      expect(query('.timeout-card').nativeElement.textContent).toContain('login.timeoutReturnToApp');
+      expect(query('button')).toBeNull();
+    });
+
+    it('tells the user to go back to the application from the certificate step when the login cannot be aborted', () => {
+      mockLocation();
+      showCertificate();
+
+      click('app-certificate-step .back-to-application');
+
+      expect(window.location.href).toBe('');
+      expect(query('app-certificate-step')).toBeNull();
+      expect(query('.timeout-card').nativeElement.textContent).toContain('login.timeoutReturnToApp');
+      expect(query('button')).toBeNull();
     });
 
     it('cancels the certificate call when the component is destroyed', () => {
@@ -1260,7 +1286,8 @@ describe('LoginComponent', () => {
 
       expect(window.location.href).toBe('');
       expect(component.timedOut).toBe(true);
-      expect(fixture.nativeElement.querySelector('.timeout-card')).toBeTruthy();
+      expect(component.returnUnavailable()).toBe(true);
+      expect(fixture.nativeElement.querySelector('.timeout-card').textContent).toContain('login.timeoutReturnToApp');
 
       component.ngOnDestroy();
     }));
