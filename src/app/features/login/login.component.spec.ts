@@ -766,7 +766,7 @@ describe('LoginComponent', () => {
 
   // --- qrData (QR readable by the phone camera) ---
 
-  describe('qrData', () => {
+  describe('qrData (EUD-388)', () => {
     const AUTH_REQUEST = 'openid4vp://?client_id=x509_hash%3Aabc&request_uri=https%3A%2F%2Fsandbox.example.com%2Fverifier%2Foid4vp%2Fauth-request%2Fr1';
     const CUSTOM_ENV: CustomDomainEnv = {
       issuer: 'https://cgcom.example.com/issuer',
