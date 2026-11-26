@@ -153,11 +153,26 @@ export class LoginComponent implements OnInit, OnDestroy {
     return this.tenantService.resolvedEnv()?.wallet ?? null;
   }
 
+  /** Address opened by the same-device button: the tenant's wallet as configured (relative on canonical tenants). */
   get walletRedirectUrl(): string {
+    return this.buildWalletAddress(this.walletUrl);
+  }
+
+  /**
+   * Content of the login QR. A phone camera only opens https addresses (the
+   * Wallet App is a PWA and cannot handle `openid4vp://`), so the QR carries
+   * the same wallet address as the button, made absolute against this page's
+   * origin. Without a wallet for the tenant it falls back to the Verifier's
+   * `openid4vp://` request, which the wallet's own scanner reads.
+   */
+  get qrData(): string {
     const walletUrl = this.walletUrl;
-    if (!this.authRequest || !walletUrl) return '';
-    const base = walletUrl.replace(/\/+$/, '');
-    return `${base}/protocol/callback?authorization_request=${encodeURIComponent(this.authRequest)}`;
+    if (!walletUrl) return this.authRequest;
+    try {
+      return this.buildWalletAddress(new URL(walletUrl, window.location.origin).href) || this.authRequest;
+    } catch {
+      return this.authRequest;
+    }
   }
 
   copyAuthRequest(): void {
@@ -211,6 +226,13 @@ export class LoginComponent implements OnInit, OnDestroy {
         window.location.href = returnUrl;
       }
     });
+  }
+
+  /** Single builder of the wallet address, shared by the QR and the same-device button. */
+  private buildWalletAddress(walletUrl: string | null): string {
+    if (!this.authRequest || !walletUrl) return '';
+    const base = walletUrl.replace(/\/+$/, '');
+    return `${base}/protocol/callback?authorization_request=${encodeURIComponent(this.authRequest)}`;
   }
 
   private requestWallet(): void {

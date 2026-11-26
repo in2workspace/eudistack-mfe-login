@@ -764,6 +764,131 @@ describe('LoginComponent', () => {
     });
   });
 
+  // --- qrData (QR readable by the phone camera) ---
+
+  describe('qrData', () => {
+    const AUTH_REQUEST = 'openid4vp://?client_id=x509_hash%3Aabc&request_uri=https%3A%2F%2Fsandbox.example.com%2Fverifier%2Foid4vp%2Fauth-request%2Fr1';
+    const CUSTOM_ENV: CustomDomainEnv = {
+      issuer: 'https://cgcom.example.com/issuer',
+      verifier: 'https://cgcom.example.com/verifier',
+      wallet: 'https://wallet.cgcom.example.com',
+    };
+
+    const LOGIN_ORIGIN = 'https://sandbox.dev.eudistack.net';
+    let originalLocation: PropertyDescriptor | undefined;
+
+    beforeEach(() => {
+      // Other suites replace window.location with { href } only: pin the login page origin here.
+      originalLocation = Object.getOwnPropertyDescriptor(window, 'location');
+      Object.defineProperty(window, 'location', {
+        value: { href: `${LOGIN_ORIGIN}/login`, origin: LOGIN_ORIGIN },
+        writable: true,
+        configurable: true
+      });
+    });
+
+    afterEach(() => {
+      if (originalLocation) {
+        Object.defineProperty(window, 'location', originalLocation);
+      }
+    });
+
+    function qrdata(): string {
+      return fixture.debugElement.query(By.css('qrcode')).componentInstance.qrdata;
+    }
+
+    it('AC-01: the QR carries the tenant wallet address with the request encoded', () => {
+      createComponent({ authRequest: AUTH_REQUEST, state: 's1' }, { isCanonical: false, resolvedEnv: CUSTOM_ENV });
+      fixture.detectChanges();
+
+      expect(qrdata()).toBe(
+        `https://wallet.cgcom.example.com/protocol/callback?authorization_request=${encodeURIComponent(AUTH_REQUEST)}`
+      );
+      expect(new URL(qrdata()).searchParams.get('authorization_request')).toBe(AUTH_REQUEST);
+      component.ngOnDestroy();
+    });
+
+    it('AC-01: the QR and the same-device button carry the same address', () => {
+      createComponent({ authRequest: AUTH_REQUEST, state: 's1' }, { isCanonical: false, resolvedEnv: CUSTOM_ENV });
+      fixture.detectChanges();
+
+      expect(qrdata()).toBe(component.walletRedirectUrl);
+      component.ngOnDestroy();
+    });
+
+    it('AC-06: on the canonical tenant the QR carries the absolute address (login origin + /wallet)', () => {
+      createComponent({ authRequest: AUTH_REQUEST, state: 's1' }, { isCanonical: true });
+      fixture.detectChanges();
+
+      expect(qrdata()).toBe(
+        `https://sandbox.dev.eudistack.net/wallet/protocol/callback?authorization_request=${encodeURIComponent(AUTH_REQUEST)}`
+      );
+      component.ngOnDestroy();
+    });
+
+    it('AC-06: on the canonical tenant the same-device button keeps the relative address', () => {
+      createComponent({ authRequest: AUTH_REQUEST, state: 's1' }, { isCanonical: true });
+      fixture.detectChanges();
+
+      expect(component.walletRedirectUrl).toBe(`/wallet/protocol/callback?authorization_request=${encodeURIComponent(AUTH_REQUEST)}`);
+      component.ngOnDestroy();
+    });
+
+    it('EC-01: does not double the slash of a wallet address ending with /', () => {
+      createComponent(
+        { authRequest: AUTH_REQUEST, state: 's1' },
+        { isCanonical: false, resolvedEnv: { ...CUSTOM_ENV, wallet: 'https://wallet.cgcom.example.com/app//' } }
+      );
+      fixture.detectChanges();
+
+      expect(qrdata()).toBe(
+        `https://wallet.cgcom.example.com/app/protocol/callback?authorization_request=${encodeURIComponent(AUTH_REQUEST)}`
+      );
+      component.ngOnDestroy();
+    });
+
+    it('EC-02: after choosing the wallet method the QR carries the new request', () => {
+      createComponent({ state: 's1' }, { isCanonical: false, resolvedEnv: CUSTOM_ENV }, of({ methods: ['x509', 'wallet'] }));
+      fixture.detectChanges();
+      startWalletMock().mockReturnValue(of({ authRequest: AUTH_REQUEST, expires_in: 120 }));
+
+      component.chooseMethod('wallet');
+      fixture.detectChanges();
+
+      expect(qrdata()).toBe(
+        `https://wallet.cgcom.example.com/protocol/callback?authorization_request=${encodeURIComponent(AUTH_REQUEST)}`
+      );
+      component.ngOnDestroy();
+    });
+
+    it('ES-01: without a wallet for the tenant the QR keeps the openid4vp:// request', () => {
+      createComponent({ authRequest: AUTH_REQUEST, state: 's1' }, { isCanonical: false, resolvedEnv: null });
+      fixture.detectChanges();
+
+      expect(qrdata()).toBe(AUTH_REQUEST);
+      expect(fixture.debugElement.query(By.css('.wallet-cta'))).toBeNull();
+      component.ngOnDestroy();
+    });
+
+    it('ES-02: without a request no wallet address is built', () => {
+      createComponent({}, { isCanonical: false, resolvedEnv: CUSTOM_ENV });
+
+      expect(component.qrData).toBe('');
+      expect(component.walletRedirectUrl).toBe('');
+    });
+
+    it('AC-05: the access code copied is still the openid4vp:// request', () => {
+      Object.assign(navigator, { clipboard: { writeText: jest.fn().mockResolvedValue(undefined) } });
+      createComponent({ authRequest: AUTH_REQUEST, state: 's1' }, { isCanonical: false, resolvedEnv: CUSTOM_ENV });
+      fixture.detectChanges();
+
+      component.copyAuthRequest();
+
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(AUTH_REQUEST);
+      component.ngOnDestroy();
+    });
+  });
+
   // --- copyAuthRequest ---
 
   describe('copyAuthRequest', () => {
@@ -949,7 +1074,7 @@ describe('LoginComponent', () => {
 
       const mockQr = fixture.debugElement.query(By.directive(MockQRCodeComponent))?.componentInstance as MockQRCodeComponent;
 
-      expect(mockQr.qrdata).toBe('https://verifier.example.com/oid4vp/auth?nonce=abc');
+      expect(mockQr.qrdata).toBe(component.qrData);
       expect(mockQr.errorCorrectionLevel).toBe('L');
       expect(mockQr.margin).toBe(1);
       expect(mockQr.elementType).toBe('svg');
