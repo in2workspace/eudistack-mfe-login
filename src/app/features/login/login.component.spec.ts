@@ -1069,12 +1069,16 @@ describe('LoginComponent', () => {
     });
 
     it('should render the QR with scanner-friendly settings', () => {
-      createComponent({ authRequest: 'https://verifier.example.com/oid4vp/auth?nonce=abc' });
+      // Absolute wallet address, so the QR content does not depend on window.location.
+      createComponent(
+        { authRequest: 'openid4vp://?request_uri=r1' },
+        { isCanonical: false, resolvedEnv: { issuer: '', verifier: '', wallet: 'https://wallet.example.com' } }
+      );
       fixture.detectChanges();
 
       const mockQr = fixture.debugElement.query(By.directive(MockQRCodeComponent))?.componentInstance as MockQRCodeComponent;
 
-      expect(mockQr.qrdata).toBe(component.qrData);
+      expect(mockQr.qrdata).toBe('https://wallet.example.com/protocol/callback?authorization_request=openid4vp%3A%2F%2F%3Frequest_uri%3Dr1');
       expect(mockQr.errorCorrectionLevel).toBe('L');
       expect(mockQr.margin).toBe(1);
       expect(mockQr.elementType).toBe('svg');
