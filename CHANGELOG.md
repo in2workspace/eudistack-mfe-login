@@ -1,6 +1,10 @@
 # Changelog
 
-[Unreleased]
+## [Unreleased]
+
+### Changed
+
+- **EUD-388 — the login QR opens with the phone camera**: the QR now carries the tenant wallet address with the request, `<wallet>/protocol/callback?authorization_request=<openid4vp:// request, URL-encoded>`, instead of the bare `openid4vp://` link, which no app on the phone could open (the Wallet App is a PWA). It is the same address as the same-device button, built by one function, and absolute (login origin + `/wallet`) on canonical tenants. The wallet's own scanner still reads it. Without a wallet for the tenant the QR keeps the `openid4vp://` request, and «Copy access code» still copies it. Only this MFE changes: the Verifier and the Wallet App are untouched.
 
 ### Added
 
