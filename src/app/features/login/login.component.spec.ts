@@ -378,10 +378,11 @@ describe('LoginComponent', () => {
       expect(fixture.debugElement.query(By.css('app-method-selection'))).toBeNull();
       expect(TestBed.inject(LoginSessionService).abort).toHaveBeenCalledWith('s123');
       expect(window.location.href).toBe('');
+      expect(fixture.debugElement.query(By.css('.timeout-card')).nativeElement.textContent.trim())
+        .toBe('login.timeout');
 
       tick(3000);
       expect(window.location.href).toBe(RP_ERROR_REDIRECT);
-      expect(component.returnUnavailable()).toBe(false);
     }));
 
     it('tells the user to go back to the application when the Verifier cannot say where to return', fakeAsync(() => {
@@ -391,17 +392,13 @@ describe('LoginComponent', () => {
 
       component.chooseMethod('wallet');
       fixture.detectChanges();
-      expect(fixture.debugElement.query(By.css('.timeout-card')).nativeElement.textContent)
-        .toContain('login.timeout');
-      expect(component.returnUnavailable()).toBe(false);
-      tick(3000);
-      fixture.detectChanges();
 
-      expect(window.location.href).toBe('');
-      expect(component.returnUnavailable()).toBe(true);
+      // Already before the pause that precedes a redirect: there is nowhere to "try again".
       expect(fixture.debugElement.query(By.css('.timeout-card')).nativeElement.textContent)
         .toContain('login.timeoutReturnToApp');
       expect(fixture.debugElement.query(By.css('.timeout-card button'))).toBeNull();
+      tick(3000);
+      expect(window.location.href).toBe('');
     }));
 
     it('goes to the certificate step without asking for the wallet request when the certificate is chosen', () => {
@@ -700,6 +697,49 @@ describe('LoginComponent', () => {
       expect(query('app-certificate-step')).toBeNull();
       expect(query('.timeout-card').nativeElement.textContent).toContain('login.timeoutReturnToApp');
       expect(query('button')).toBeNull();
+    });
+
+    it('keeps any other certificate error, with its way out, when the login cannot be aborted', () => {
+      mockLocation();
+      showCertificate();
+      loginMock().mockReturnValue(of({ reason: 'certificate_expired' }));
+      click('app-certificate-step .primary-action');
+
+      click('app-certificate-error .back-to-application');
+
+      expect(window.location.href).toBe('');
+      expect(component.step()).toBe('error');
+      expect(component.certificateErrorReason()).toBe('certificate_expired');
+      expect(query('.timeout-card')).toBeNull();
+      expect(query('app-certificate-error .primary-action')).toBeTruthy();
+    });
+
+    it('lets the user ask to return again after an abort that found no address', () => {
+      mockLocation();
+      showCertificate();
+      loginMock().mockReturnValue(of({ reason: 'certificate_expired' }));
+      click('app-certificate-step .primary-action');
+      click('app-certificate-error .back-to-application');
+      (TestBed.inject(LoginSessionService).abort as jest.Mock).mockReturnValue(of(RP_ERROR_REDIRECT));
+
+      click('app-certificate-error .back-to-application');
+
+      expect(window.location.href).toBe(RP_ERROR_REDIRECT);
+    });
+
+    it('aborts the login once when «Volver a la aplicación» is clicked twice', () => {
+      mockLocation();
+      showCertificate();
+      const response$ = new Subject<string | null>();
+      const abort = TestBed.inject(LoginSessionService).abort as jest.Mock;
+      abort.mockReturnValue(response$);
+
+      click('app-certificate-step .back-to-application');
+      click('app-certificate-step .back-to-application');
+      response$.next(RP_ERROR_REDIRECT);
+
+      expect(abort).toHaveBeenCalledTimes(1);
+      expect(window.location.href).toBe(RP_ERROR_REDIRECT);
     });
 
     it('cancels the certificate call when the component is destroyed', () => {

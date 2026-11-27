@@ -116,6 +116,7 @@ export class LoginComponent implements OnInit, OnDestroy {
   private certificateSub?: Subscription;
   private countdownInterval?: ReturnType<typeof setInterval>;
   private countdownDeadline = 0;
+  private aborting = false;
   private readonly onVisibilityChange = (): void => this.tickCountdown();
 
   private readonly destroyRef = inject(DestroyRef);
@@ -207,10 +208,18 @@ export class LoginComponent implements OnInit, OnDestroy {
   }
 
   backToApplication(): void {
+    // A second abort would find the login already gone and flash the expired screen
+    // while the first one is redirecting.
+    if (this.aborting) return;
+    this.aborting = true;
     this.loginSessionService.abort(this.state).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(returnUrl => {
       if (returnUrl) {
         window.location.href = returnUrl;
-      } else {
+        return;
+      }
+      this.aborting = false;
+      // Any other certificate error may leave the login alive, with another method to try.
+      if (this.step() !== 'error' || this.certificateErrorReason() === 'login_not_found') {
         this.markTimedOut();
         this.step.set('expired');
         this.returnUnavailable.set(true);
@@ -243,8 +252,6 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.timerSub = this.resolveReturnUrl().subscribe(returnUrl => {
       if (returnUrl) {
         window.location.href = returnUrl;
-      } else {
-        this.returnUnavailable.set(true);
       }
     });
   }
@@ -318,8 +325,6 @@ export class LoginComponent implements OnInit, OnDestroy {
       if (returnUrl) {
         this.sseSub?.unsubscribe();
         window.location.href = returnUrl;
-      } else {
-        this.returnUnavailable.set(true);
       }
     });
   }
@@ -333,9 +338,10 @@ export class LoginComponent implements OnInit, OnDestroy {
   /**
    * Only the Verifier knows which application started the login, so the return
    * URL comes from aborting the login there. Emits `null` when it is unknown:
-   * the user then stays on the expired screen, told to go back to the application
-   * on their own, instead of being sent elsewhere.
-   * Never emits before the expired message has been shown for a moment.
+   * the user then stays on the expired screen instead of being sent elsewhere.
+   * Never emits before the expired message has been shown for a moment, but the
+   * screen asks the user to go back on their own as soon as the URL is known to
+   * be missing: "try again" has nowhere to happen.
    *
    * The SSE stream stays open meanwhile: abort and completion are mutually
    * exclusive at the Verifier, so if the abort finds nothing (`null`) a wallet
@@ -344,7 +350,9 @@ export class LoginComponent implements OnInit, OnDestroy {
    */
   private resolveReturnUrl(): Observable<string | null> {
     return forkJoin([
-      this.loginSessionService.abort(this.state),
+      this.loginSessionService.abort(this.state).pipe(
+        tap(returnUrl => this.returnUnavailable.set(!returnUrl))
+      ),
       timer(TIMEOUT_REDIRECT_DELAY_MS)
     ]).pipe(map(([returnUrl]) => returnUrl));
   }
