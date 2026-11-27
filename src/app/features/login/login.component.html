@@ -182,7 +182,7 @@
 
       <!-- Timeout message -->
       <div class="card timeout-card" *ngIf="timedOut" role="alert">
-        <p>{{ 'login.timeout' | translate }}</p>
+        <p>{{ (returnUnavailable() ? 'login.timeoutReturnToApp' : 'login.timeout') | translate }}</p>
       </div>
 
       <!-- Error message -->

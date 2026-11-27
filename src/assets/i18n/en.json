@@ -19,6 +19,7 @@
   "login.support.contact.desktop": "Access our support resources",
   "login.support.contact.mobile": "Visit Support",
   "login.timeout": "Session expired. Please try again.",
+  "login.timeoutReturnToApp": "Session expired. Go back to the application you came from to sign in again.",
   "login.verified": "Verified!",
   "login.error": "An error occurred during login.",
   "login.errorCredentialRevoked": "The credential has been revoked and is not valid for access.",

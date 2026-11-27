@@ -8,6 +8,9 @@
 
 ### Fixed
 
+- **EUD-373 — an expired login with no way back tells the user what to do**: when the Verifier cannot give the address of the application (it no longer knows the login), the expired-session card asks the user to go back to the application they came from, in Spanish, Catalan and English, instead of "try again".
+- **EUD-373 — "Back to the application" without a return address**: from the method selection, the certificate step and the `login_not_found` certificate error, the screen shows the same message and no longer offers buttons that do nothing. Other certificate errors stay as they are, with "Change method". With a return address nothing changes.
+- **EUD-373 — a double click on "Back to the application"** aborts the login once.
 - **Login the Verifier no longer knows** (404) shows the expired session and returns to the application, instead of the generic error.
 - **The copy animation** is skipped when the user prefers reduced motion, and the countdown shows the time the login really has left.
 - **I-04 — login con credencial revocada muestra un mensaje explícito**: `SseService` ahora escucha el evento `validation_failed` del verifier y emite un `SseValidationError` con el `code`; antes solo escuchaba `redirect`, por lo que el cierre del emitter se interpretaba como fallo de conexión y se mostraba el error genérico. `LoginComponent` muestra `login.errorCredentialRevoked` (es/en/ca) para `CREDENTIAL_REVOKED`; el resto de códigos y los fallos de conexión mantienen `login.error`. Tests: `sse.service.spec.ts`, `login.component.spec.ts`.
